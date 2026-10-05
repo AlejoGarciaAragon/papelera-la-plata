@@ -3,6 +3,7 @@ from django.db import models
 class Categoria(models.Model):
     nombre = models.CharField(max_length=150, unique=True)
     descripcion = models.CharField(max_length=250, blank=True, null=True)
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre
@@ -11,8 +12,11 @@ class Producto(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='productos')
     codigo_barra = models.CharField(max_length=50, unique=True, db_index=True)
     nombre = models.CharField(max_length=150)
+    descripcion = models.TextField(blank=True, null=True)
+    precio_lista = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     precio_actual = models.DecimalField(max_digits=10, decimal_places=2)
     tiendanube_id = models.BigIntegerField(null=True, blank=True, unique=True)
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.codigo_barra} - {self.nombre}"
@@ -28,6 +32,7 @@ class Inventario(models.Model):
 class Cliente(models.Model):
     cuit_dni = models.CharField(max_length=20, unique=True, db_index=True)
     razon_social = models.CharField(max_length=150)
+    direccion = models.CharField(max_length=250, blank=True, null=True)
     condicion_iva = models.CharField(max_length=30)
 
     def __str__(self):
