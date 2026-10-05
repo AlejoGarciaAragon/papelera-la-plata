@@ -5,8 +5,11 @@ from .serializers import (
     CategoriaSerializer, ClienteSerializer,
     ProductoCreateSerializer, ProductoUpdateSerializer
 )
+from rest_framework.permissions import IsAuthenticated
+from .permissions import RolAccessPermission
 
 class CategoriaViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, RolAccessPermission]
     serializer_class = CategoriaSerializer
 
     def get_queryset(self):
@@ -30,6 +33,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
 
 class ClienteViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, RolAccessPermission]
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     
@@ -43,6 +47,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, RolAccessPermission]
     def get_queryset(self):
         # Solo productos activos
         return Producto.objects.filter(activo=True)
@@ -64,7 +69,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
                     {"error": "El producto no está disponible."},
                     status=status.HTTP_404_NOT_FOUND
                 )
-        except Producto.oxides.DoesNotExist if hasattr(Producto, 'oxides') else Producto.DoesNotExist:
+        except Producto.DoesNotExist:
             pass
         return super().retrieve(request, *args, **kwargs)
 
