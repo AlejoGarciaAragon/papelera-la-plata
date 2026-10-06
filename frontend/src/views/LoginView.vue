@@ -39,6 +39,7 @@ const login = async () => {
 
     localStorage.setItem('access', data.access)
     localStorage.setItem('refresh', data.refresh)
+    localStorage.setItem('username', username.value)
 
     router.push('/dashboard')
   } catch (err) {
