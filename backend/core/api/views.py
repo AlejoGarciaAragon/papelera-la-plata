@@ -14,10 +14,10 @@ from .permissions import RolAccessPermission
 class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
     serializer_class = CategoriaSerializer
-
-    def get_queryset(self):
-        # Listado solo de categorías activas
-        return Categoria.objects.all()
+    queryset = Categoria.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['nombre', 'descripcion']
+    filterset_fields = ['activo']
 
     def destroy(self, request, *args, **kwargs):
         categoria = self.get_object()
@@ -78,4 +78,3 @@ class ProductoViewSet(viewsets.ModelViewSet):
         except Producto.DoesNotExist:
             pass
         return super().retrieve(request, *args, **kwargs)
-

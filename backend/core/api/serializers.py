@@ -2,6 +2,7 @@ from rest_framework import serializers
 from core.models import Categoria, Cliente, Inventario, Producto
 from django.db import transaction
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from decimal import Decimal
 
 
 class PapeleraTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -29,6 +30,9 @@ class InventarioSerializer(serializers.ModelSerializer):
 class ProductoCreateSerializer(serializers.ModelSerializer):
     # stock_inicial solo para crear
     stock_inicial = serializers.IntegerField(write_only=True, default=0)
+    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), allow_null=False)
+    precio_actual = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+    porcentaje_ganancia = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'))
     categoria_nombre = serializers.ReadOnlyField(source='categoria.nombre')
     inventario = InventarioSerializer(read_only=True)
     precio_venta = serializers.ReadOnlyField()
@@ -44,6 +48,11 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
     def validate_stock_inicial(self, value):
         if value < 0:
             raise serializers.ValidationError("El stock inicial no puede ser negativo.")
+        return value
+
+    def validate_categoria(self, value):
+        if not value.activo:
+            raise serializers.ValidationError("No se puede asociar un producto a una categoría inactiva.")
         return value
 
     def create(self, validated_data):
@@ -64,10 +73,13 @@ class ProductoUpdateSerializer(serializers.ModelSerializer):
     categoria_nombre = serializers.ReadOnlyField(source='categoria.nombre')
     inventario = InventarioSerializer(read_only=True)
     stock_fisico = serializers.IntegerField(write_only=True, required=False, min_value=0)
+    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), allow_null=False, required=False)
+    precio_actual = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False)
+    porcentaje_ganancia = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'), required=False)
     precio_venta = serializers.ReadOnlyField()
 
     def validate_categoria(self, value):
-        if value and not value.activo:
+        if not value.activo:
             raise serializers.ValidationError("No se puede asociar un producto a una categoría inactiva.")
         return value
 

@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+.campo {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  color: #475569;
+  outline: none;
+}
+
+.campo:focus {
+  border-color: #5eead4;
+  box-shadow: 0 0 0 3px #ccfbf1;
+}
+
+label {
+  color: #475569;
+  font-size: 0.875rem;
+}
