@@ -6,6 +6,9 @@ from .serializers import (
     ProductoCreateSerializer, ProductoUpdateSerializer
 )
 from rest_framework.permissions import IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
+from django.db.models import ProtectedError
 from .permissions import RolAccessPermission
 
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -48,9 +51,12 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
 class ProductoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['categoria', 'activo']
+    search_fields = ['nombre', 'codigo_barra', 'descripcion']
+
     def get_queryset(self):
-        # Solo productos activos
-        return Producto.objects.filter(activo=True)
+        return Producto.objects.select_related('categoria').prefetch_related('inventario').all()
 
     def get_serializer_class(self):
         # Usar ProductoCreateSerializer para POST, y Update para PUT/PATCH
@@ -73,9 +79,3 @@ class ProductoViewSet(viewsets.ModelViewSet):
             pass
         return super().retrieve(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
-        producto = self.get_object()
-        # Borrado lógico
-        producto.activo = False
-        producto.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)

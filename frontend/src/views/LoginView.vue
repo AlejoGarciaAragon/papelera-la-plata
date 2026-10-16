@@ -40,8 +40,9 @@ const login = async () => {
     localStorage.setItem('access', data.access)
     localStorage.setItem('refresh', data.refresh)
     localStorage.setItem('username', username.value)
+    localStorage.setItem('role', data.role || '')
 
-    router.push('/dashboard')
+    router.push('/caja')
   } catch (err) {
     error.value = err.message || 'No se pudo conectar con el servidor.'
   } finally {

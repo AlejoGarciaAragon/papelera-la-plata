@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
 class Categoria(models.Model):
@@ -15,11 +18,16 @@ class Producto(models.Model):
     descripcion = models.TextField(blank=True, null=True)
     precio_lista = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     precio_actual = models.DecimalField(max_digits=10, decimal_places=2)
+    porcentaje_ganancia = models.DecimalField(max_digits=7, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     tiendanube_id = models.BigIntegerField(null=True, blank=True, unique=True)
     activo = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.codigo_barra} - {self.nombre}"
+
+    @property
+    def precio_venta(self):
+        return self.precio_actual * (Decimal('1') + self.porcentaje_ganancia / Decimal('100'))
 
 class Inventario(models.Model):
     producto = models.OneToOneField(Producto, on_delete=models.CASCADE, primary_key=True, related_name='inventario')

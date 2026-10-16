@@ -42,11 +42,11 @@ const cerrarSesion = () => {
 
       <nav class="overflow-x-auto border-b border-slate-200" aria-label="Navegación principal">
         <div class="flex min-w-[58rem] divide-x divide-slate-200 md:min-w-0">
+          <router-link to="/caja" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Caja</router-link>
           <router-link to="/productos" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Productos</router-link>
           <router-link to="/categorias" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Categorías</router-link>
           <router-link to="/clientes" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Clientes</router-link>
           <router-link to="/facturacion" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Facturación y ARCA</router-link>
-          <router-link to="/caja" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Caja y turnos</router-link>
           <router-link to="/stock" active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Stock y proveedores</router-link>
           <router-link to="/dashboard" exact-active-class="router-link-active bg-teal-50 text-teal-800" class="flex-1 whitespace-nowrap px-3 py-3 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800">Dashboard</router-link>
         </div>

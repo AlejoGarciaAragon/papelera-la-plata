@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import ProductosView from '../views/ProductosView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,7 +9,7 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
-        return localStorage.getItem('access') ? '/dashboard' : '/login'
+        return localStorage.getItem('access') ? '/caja' : '/login'
       }
     },
     {
@@ -24,9 +25,15 @@ const router = createRouter({
     },
     {
       path: '/productos',
-      name: 'productos',
       component: DashboardView,
       meta: { requiresAuth: true }
+      , children: [
+        {
+          path: '',
+          name: 'productos',
+          component: ProductosView
+        }
+      ]
     },
     {
       path: '/categorias',
@@ -73,7 +80,7 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login')
   } else if (to.name === 'login' && isAuthenticated) {
-    next('/dashboard')
+    next('/caja')
   } else {
     next()
   }
