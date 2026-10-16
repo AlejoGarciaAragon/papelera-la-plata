@@ -111,12 +111,11 @@ async function guardarProducto() {
     const esNuevo = !productoSeleccionado.value
     const payload = { ...formulario.value, categoria: formulario.value.categoria || null }
     if (esNuevo) delete payload.stock_fisico
-    const producto = await apiFetch(esNuevo ? '/api/productos/' : `/api/productos/${productoSeleccionado.value.id}/`, {
+    await apiFetch(esNuevo ? '/api/productos/' : `/api/productos/${productoSeleccionado.value.id}/`, {
       method: esNuevo ? 'POST' : 'PATCH',
       body: JSON.stringify(payload)
     })
-    if (esNuevo) productos.value.unshift(producto)
-    else Object.assign(productoSeleccionado.value, producto)
+    await cargarDatos()
     modal.value = null
   } catch (err) {
     error.value = err.message
