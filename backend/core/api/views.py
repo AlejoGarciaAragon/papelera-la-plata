@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from core.models import Categoria, Cliente, Producto
+from core.models import Categoria, Cliente, DetallePedido, Producto
 from .serializers import (
     CategoriaSerializer, ClienteSerializer,
     ProductoCreateSerializer, ProductoUpdateSerializer
@@ -21,17 +21,14 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         categoria = self.get_object()
-        
-        # Validar si tiene productos activos asociados antes de dar de baja
-        if categoria.productos.filter(activo=True).exists():
+
+        if DetallePedido.objects.filter(producto__categoria=categoria).exists():
             return Response(
-                {"error": "No se puede eliminar la categoría porque tiene productos activos asociados."},
+                {"error": "No se puede eliminar la categoría porque tiene productos asociados a ventas."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Borrado lógico
-        categoria.activo = False
-        categoria.save()
+
+        categoria.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -78,3 +75,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
         except Producto.DoesNotExist:
             pass
         return super().retrieve(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        producto = self.get_object()
+        try:
+            producto.delete()
+        except ProtectedError:
+            return Response(
+                {"error": "No se puede eliminar el producto porque tiene ventas asociadas."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)

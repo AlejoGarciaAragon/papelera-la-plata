@@ -2,8 +2,8 @@
 import { useCategoriasView } from '../composables/useCategoriasView'
 
 const {
-  categorias, busqueda, estadoFiltro, cargando, error, modal, categoriaSeleccionada, formulario,
-  esDueno, categoriasVisibles, abrirCrear, abrirEditar, guardarCategoria, cambiarEstado
+  categorias, busqueda, estadoFiltro, cargando, error, modal, categoriaSeleccionada, categoriaAEliminar, formulario,
+  esDueno, categoriasVisibles, abrirCrear, abrirEditar, guardarCategoria, cambiarEstado, eliminarCategoria, confirmarEliminacionCategoria
 } = useCategoriasView()
 </script>
 
@@ -79,12 +79,19 @@ const {
                     Editar
                   </button>
                   <button
-                    :class="categoria.activo ? 'text-rose-600 hover:text-rose-800' : 'text-teal-700 hover:text-teal-900'"
+                    :class="categoria.activo ? 'text-amber-600 hover:text-amber-800' : 'text-teal-700 hover:text-teal-900'"
                     class="disabled:opacity-40"
                     :disabled="!esDueno"
                     @click="cambiarEstado(categoria)"
                   >
                     {{ categoria.activo ? 'Ocultar' : 'Activar' }}
+                  </button>
+                  <button
+                    class="text-rose-700 hover:text-rose-900 disabled:opacity-40"
+                    :disabled="!esDueno"
+                    @click="eliminarCategoria(categoria)"
+                  >
+                    Eliminar
                   </button>
                 </div>
               </td>
@@ -126,6 +133,16 @@ const {
         </div>
       </form>
     </div>
+
+    <div v-if="categoriaAEliminar" class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/30 p-4">
+      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h3 class="text-xl font-bold text-slate-800">Eliminar categoría</h3>
+        <p class="mt-3 text-sm text-slate-600">¿Querés eliminar definitivamente la categoría <strong>{{ categoriaAEliminar.nombre }}</strong>? Esta acción no se puede deshacer.</p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button type="button" class="rounded-lg px-4 py-2 text-slate-600 hover:bg-slate-100" @click="categoriaAEliminar = null">Cancelar</button>
+          <button type="button" class="rounded-lg bg-rose-600 px-4 py-2 font-medium text-white hover:bg-rose-700" @click="confirmarEliminacionCategoria">Eliminar definitivamente</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-

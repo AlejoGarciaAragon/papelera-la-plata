@@ -34,6 +34,7 @@ export function useProductosView() {
   const error = ref('')
   const modal = ref(null)
   const productoSeleccionado = ref(null)
+  const productoAEliminar = ref(null)
   const formulario = ref(formularioVacio())
 
   const esDueno = computed(() => {
@@ -125,6 +126,22 @@ export function useProductosView() {
     }
   }
 
+  async function eliminarProducto(producto) {
+    if (!esDueno.value) return
+    productoAEliminar.value = producto
+  }
+
+  async function confirmarEliminacionProducto() {
+    if (!productoAEliminar.value) return
+    try {
+      await apiFetch(`/api/productos/${productoAEliminar.value.id}/`, { method: 'DELETE' })
+      productos.value = productos.value.filter((item) => item.id !== productoAEliminar.value.id)
+      productoAEliminar.value = null
+    } catch (err) {
+      error.value = err.message
+    }
+  }
+
   function precio(valor) {
     return Number(valor || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
   }
@@ -145,6 +162,7 @@ export function useProductosView() {
     error,
     modal,
     productoSeleccionado,
+    productoAEliminar,
     formulario,
     esDueno,
     productosVisibles,
@@ -152,6 +170,8 @@ export function useProductosView() {
     abrirEditar,
     guardarProducto,
     cambiarEstado,
+    eliminarProducto,
+    confirmarEliminacionProducto,
     precio,
     precioVenta
   }

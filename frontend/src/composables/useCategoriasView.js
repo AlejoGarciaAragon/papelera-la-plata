@@ -23,6 +23,7 @@ export function useCategoriasView() {
   const error = ref('')
   const modal = ref(false)
   const categoriaSeleccionada = ref(null)
+  const categoriaAEliminar = ref(null)
   const formulario = ref(formularioVacio())
 
   const esDueno = computed(() => {
@@ -105,6 +106,22 @@ export function useCategoriasView() {
     }
   }
 
+  async function eliminarCategoria(categoria) {
+    if (!esDueno.value) return
+    categoriaAEliminar.value = categoria
+  }
+
+  async function confirmarEliminacionCategoria() {
+    if (!categoriaAEliminar.value) return
+    try {
+      await apiFetch(`/api/categorias/${categoriaAEliminar.value.id}/`, { method: 'DELETE' })
+      categorias.value = categorias.value.filter((item) => item.id !== categoriaAEliminar.value.id)
+      categoriaAEliminar.value = null
+    } catch (err) {
+      error.value = err.message
+    }
+  }
+
   onMounted(cargarCategorias)
 
   return {
@@ -115,12 +132,16 @@ export function useCategoriasView() {
     error,
     modal,
     categoriaSeleccionada,
+    categoriaAEliminar,
     formulario,
     esDueno,
     categoriasVisibles,
     abrirCrear,
     abrirEditar,
     guardarCategoria,
-    cambiarEstado
+    cambiarEstado,
+    eliminarCategoria
+    ,
+    confirmarEliminacionCategoria
   }
 }

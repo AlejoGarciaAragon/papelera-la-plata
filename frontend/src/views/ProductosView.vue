@@ -2,8 +2,8 @@
 import { useProductosView } from '../composables/useProductosView'
 
 const {
-  productos, categorias, busqueda, categoriaFiltro, estadoFiltro, cargando, error, modal, productoSeleccionado, formulario,
-  esDueno, productosVisibles, abrirCrear, abrirEditar, guardarProducto, cambiarEstado, precio, precioVenta
+  productos, categorias, busqueda, categoriaFiltro, estadoFiltro, cargando, error, modal, productoSeleccionado, productoAEliminar, formulario,
+  esDueno, productosVisibles, abrirCrear, abrirEditar, guardarProducto, cambiarEstado, eliminarProducto, confirmarEliminacionProducto, precio, precioVenta
 } = useProductosView()
 </script>
 
@@ -34,7 +34,7 @@ const {
         <table class="w-full min-w-[1000px] text-left text-sm">
           <thead class="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-4">Código</th><th class="px-5 py-4">Nombre</th><th class="px-5 py-4">Categoría</th><th class="px-5 py-4">Costo</th><th class="px-5 py-4">Ganancia</th><th class="px-5 py-4">Precio de venta</th><th class="px-5 py-4">Stock</th><th class="px-5 py-4">Estado</th><th class="px-5 py-4">Acciones</th></tr></thead>
           <tbody class="divide-y divide-slate-100">
-            <tr v-for="producto in productosVisibles" :key="producto.id" class="text-slate-600"><td class="px-5 py-4 font-mono text-xs">{{ producto.codigo_barra }}</td><td class="px-5 py-4 font-medium text-slate-800">{{ producto.nombre }}<div class="max-w-xs truncate text-xs font-normal text-slate-400">{{ producto.descripcion }}</div></td><td class="px-5 py-4">{{ producto.categoria_nombre || 'Sin categoría' }}</td><td class="px-5 py-4">{{ precio(producto.precio_actual) }}</td><td class="px-5 py-4">{{ producto.porcentaje_ganancia }}%</td><td class="px-5 py-4">{{ precioVenta(producto) }}</td><td class="px-5 py-4">{{ producto.inventario?.stock_fisico ?? 0 }}</td><td class="px-5 py-4"><span :class="producto.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'" class="rounded-full px-2.5 py-1 text-xs font-medium">{{ producto.activo ? 'Activo' : 'Oculto' }}</span></td><td class="px-5 py-4"><div class="flex gap-2"><button class="text-slate-900 hover:text-slate-700 disabled:opacity-40" :disabled="!esDueno" @click="abrirEditar(producto)">Editar</button><button :class="producto.activo ? 'text-rose-600 hover:text-rose-800' : 'text-teal-700 hover:text-teal-900'" class="disabled:opacity-40" :disabled="!esDueno" @click="cambiarEstado(producto)">{{ producto.activo ? 'Ocultar' : 'Activar' }}</button></div></td></tr>
+            <tr v-for="producto in productosVisibles" :key="producto.id" class="text-slate-600"><td class="px-5 py-4 font-mono text-xs">{{ producto.codigo_barra }}</td><td class="px-5 py-4 font-medium text-slate-800">{{ producto.nombre }}<div class="max-w-xs truncate text-xs font-normal text-slate-400">{{ producto.descripcion }}</div></td><td class="px-5 py-4">{{ producto.categoria_nombre || 'Sin categoría' }}</td><td class="px-5 py-4">{{ precio(producto.precio_actual) }}</td><td class="px-5 py-4">{{ producto.porcentaje_ganancia }}%</td><td class="px-5 py-4">{{ precioVenta(producto) }}</td><td class="px-5 py-4">{{ producto.inventario?.stock_fisico ?? 0 }}</td><td class="px-5 py-4"><span :class="producto.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'" class="rounded-full px-2.5 py-1 text-xs font-medium">{{ producto.activo ? 'Activo' : 'Oculto' }}</span></td><td class="px-5 py-4"><div class="flex gap-2"><button class="text-slate-900 hover:text-slate-700 disabled:opacity-40" :disabled="!esDueno" @click="abrirEditar(producto)">Editar</button><button :class="producto.activo ? 'text-amber-600 hover:text-amber-800' : 'text-teal-700 hover:text-teal-900'" class="disabled:opacity-40" :disabled="!esDueno" @click="cambiarEstado(producto)">{{ producto.activo ? 'Ocultar' : 'Activar' }}</button><button class="text-rose-700 hover:text-rose-900 disabled:opacity-40" :disabled="!esDueno" @click="eliminarProducto(producto)">Eliminar</button></div></td></tr>
             <tr v-if="!cargando && !productosVisibles.length"><td colspan="9" class="px-5 py-12 text-center text-slate-400">No hay productos que coincidan con los filtros.</td></tr>
             <tr v-if="cargando"><td colspan="9" class="px-5 py-12 text-center text-slate-400">Cargando productos...</td></tr>
           </tbody>
@@ -57,6 +57,17 @@ const {
         </div>
         <div class="mt-6 flex justify-end gap-3"><button type="button" class="rounded-lg px-4 py-2 text-slate-600 hover:bg-slate-100" @click="modal = null">Cancelar</button><button type="submit" class="rounded-lg bg-teal-400 px-4 py-2 font-medium text-white hover:bg-teal-500">Guardar producto</button></div>
       </form>
+    </div>
+
+    <div v-if="productoAEliminar" class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/30 p-4">
+      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h3 class="text-xl font-bold text-slate-800">Eliminar producto</h3>
+        <p class="mt-3 text-sm text-slate-600">¿Querés eliminar definitivamente el producto <strong>{{ productoAEliminar.nombre }}</strong>? Esta acción no se puede deshacer.</p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button type="button" class="rounded-lg px-4 py-2 text-slate-600 hover:bg-slate-100" @click="productoAEliminar = null">Cancelar</button>
+          <button type="button" class="rounded-lg bg-rose-600 px-4 py-2 font-medium text-white hover:bg-rose-700" @click="confirmarEliminacionProducto">Eliminar definitivamente</button>
+        </div>
+      </div>
     </div>
 
   </div>
