@@ -1,6 +1,9 @@
 from decimal import Decimal
 
+from datetime import date
+
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from core.models import Categoria, Cliente, DetallePedido, DetalleVenta, Inventario, Producto, Venta
 from .serializers import (
@@ -12,6 +15,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.db.models import ProtectedError
 from django.db import transaction
+from django.db.models import Sum
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from .permissions import RolAccessPermission
 
@@ -96,7 +101,25 @@ class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
     queryset = Venta.objects.select_related('vendedor').prefetch_related('detalles__producto').all()
     serializer_class = VentaSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['estado', 'metodo_pago', 'vendedor']
+    search_fields = ['vendedor__username', 'detalles__producto__nombre', 'detalles__producto__codigo_barra']
     http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        fecha = params.get('fecha')
+        fecha_desde = params.get('fecha_desde')
+        fecha_hasta = params.get('fecha_hasta')
+
+        if fecha:
+            queryset = queryset.filter(fecha__date=fecha)
+        if fecha_desde:
+            queryset = queryset.filter(fecha__date__gte=fecha_desde)
+        if fecha_hasta:
+            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+        return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -152,3 +175,60 @@ class VentaViewSet(viewsets.ModelViewSet):
                 )
 
         return Response(self.get_serializer(venta).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def resumen_diario(self, request):
+        fecha = request.query_params.get('fecha')
+        if not fecha:
+            fecha = timezone.localdate().isoformat()
+        try:
+            date.fromisoformat(fecha)
+        except ValueError:
+            raise ValidationError({'fecha': 'Usá el formato YYYY-MM-DD.'})
+
+        ventas = Venta.objects.filter(fecha__date=fecha, estado=Venta.ESTADO_COMPLETADA)
+        recaudacion_por_metodo = {
+            metodo: ventas.filter(metodo_pago=metodo).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+            for metodo, _ in Venta.METODOS_PAGO
+        }
+        return Response({
+            'fecha': fecha,
+            'cantidad_ventas': ventas.count(),
+            'recaudacion_total': ventas.aggregate(total=Sum('total'))['total'] or Decimal('0.00'),
+            'recaudacion_por_metodo': recaudacion_por_metodo,
+        })
+
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        if not request.user.groups.filter(name='Dueno').exists():
+            return Response(
+                {'error': 'Solo el rol Dueño puede anular ventas.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        with transaction.atomic():
+            venta = Venta.objects.select_for_update().prefetch_related('detalles').get(pk=pk)
+            if venta.estado != Venta.ESTADO_COMPLETADA:
+                return Response(
+                    {'error': 'Solo se pueden anular ventas completadas.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            detalles = list(venta.detalles.all())
+            inventarios = {
+                inventario.producto_id: inventario
+                for inventario in Inventario.objects.select_for_update().filter(
+                    producto_id__in=[detalle.producto_id for detalle in detalles]
+                )
+            }
+            for detalle in detalles:
+                inventario = inventarios.get(detalle.producto_id)
+                if inventario is None:
+                    raise ValidationError({'stock': f'No existe inventario para "{detalle.producto}".'})
+                inventario.stock_fisico += detalle.cantidad
+                inventario.save(update_fields=['stock_fisico'])
+
+            venta.estado = Venta.ESTADO_CANCELADA
+            venta.save(update_fields=['estado'])
+
+        return Response(self.get_serializer(venta).data)

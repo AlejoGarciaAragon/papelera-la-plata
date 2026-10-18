@@ -4,6 +4,7 @@ import DashboardView from '../views/DashboardView.vue'
 import ProductosView from '../views/ProductosView.vue'
 import CategoriasView from '../views/CategoriasView.vue'
 import CajaView from '../views/CajaView.vue'
+import DashboardVentasView from '../views/DashboardVentasView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -57,9 +58,15 @@ const router = createRouter({
     },
     {
       path: '/facturacion',
-      name: 'facturacion',
       component: DashboardView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'facturacion',
+          component: DashboardVentasView
+        }
+      ]
     },
     {
       path: '/caja',
