@@ -3,8 +3,12 @@ import { apiFetch } from '../services/api'
 
 export function useCajaView() {
   const productos = ref([])
+  const clientes = ref([])
   const carrito = ref([])
   const busqueda = ref('')
+  const clienteId = ref(null)
+  const busquedaCliente = ref('')
+  const mostrarClientes = ref(false)
   const metodoPago = ref('efectivo')
   const cargando = ref(false)
   const procesandoVenta = ref(false)
@@ -19,6 +23,19 @@ export function useCajaView() {
         .some((valor) => String(valor || '').toLowerCase().includes(texto))
     })
   })
+
+  const clientesFiltrados = computed(() => {
+    const texto = busquedaCliente.value.trim().toLowerCase()
+    if (!texto) return clientes.value.slice(0, 8)
+    return clientes.value.filter((cliente) => [
+      cliente.nombre_o_razon_social,
+      cliente.numero_documento
+    ].some((valor) => String(valor || '').toLowerCase().includes(texto))).slice(0, 8)
+  })
+
+  const clienteSeleccionado = computed(() =>
+    clientes.value.find((cliente) => cliente.id === clienteId.value) || null
+  )
 
   const total = computed(() => carrito.value.reduce(
     (acumulado, item) => acumulado + Number(item.precio_venta) * item.cantidad,
@@ -100,6 +117,32 @@ export function useCajaView() {
     }
   }
 
+  async function cargarClientes() {
+    try {
+      const data = await apiFetch('/api/clientes/?activo=true')
+      clientes.value = (data.results || data).filter((cliente) => cliente.activo)
+    } catch (err) {
+      error.value = err.message
+    }
+  }
+
+  function seleccionarCliente(cliente) {
+    clienteId.value = cliente.id
+    busquedaCliente.value = ''
+    mostrarClientes.value = false
+  }
+
+  function seleccionarConsumidorFinal() {
+    clienteId.value = null
+    busquedaCliente.value = ''
+    mostrarClientes.value = false
+  }
+
+  function alternarClientes() {
+    mostrarClientes.value = !mostrarClientes.value
+    if (mostrarClientes.value) busquedaCliente.value = ''
+  }
+
   async function confirmarVenta() {
     if (!carrito.value.length) {
       error.value = 'Agregá al menos un producto al carrito.'
@@ -113,6 +156,7 @@ export function useCajaView() {
         method: 'POST',
         body: JSON.stringify({
           metodo_pago: metodoPago.value,
+          cliente: clienteId.value,
           items: carrito.value.map((item) => ({
             producto_id: item.id,
             cantidad: item.cantidad
@@ -120,6 +164,9 @@ export function useCajaView() {
         })
       })
       carrito.value = []
+      clienteId.value = null
+      busquedaCliente.value = ''
+      mostrarClientes.value = false
       exito.value = 'Venta registrada correctamente.'
       await cargarProductos()
     } catch (err) {
@@ -129,12 +176,19 @@ export function useCajaView() {
     }
   }
 
-  onMounted(cargarProductos)
+  onMounted(() => {
+    cargarProductos()
+    cargarClientes()
+  })
 
   return {
     productosFiltrados,
+    clientes,
     carrito,
     busqueda,
+    clienteId,
+    busquedaCliente,
+    mostrarClientes,
     metodoPago,
     cargando,
     procesandoVenta,
@@ -143,10 +197,15 @@ export function useCajaView() {
     total,
     precio,
     stockDisponible,
+    clientesFiltrados,
+    clienteSeleccionado,
     agregarProducto,
     buscarYAgregar,
     cambiarCantidad,
     eliminarItem,
+    seleccionarCliente,
+    seleccionarConsumidorFinal,
+    alternarClientes,
     confirmarVenta
   }
 }

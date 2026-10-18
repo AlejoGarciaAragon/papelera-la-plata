@@ -38,13 +38,45 @@ class Inventario(models.Model):
         return f"Stock: {self.stock_fisico} | {self.producto.nombre}"
 
 class Cliente(models.Model):
-    cuit_dni = models.CharField(max_length=20, unique=True, db_index=True)
-    razon_social = models.CharField(max_length=150)
+    TIPO_DOCUMENTO_DNI = 'dni'
+    TIPO_DOCUMENTO_CUIT = 'cuit'
+    TIPO_DOCUMENTO_CUIL = 'cuil'
+    TIPO_DOCUMENTO_PASAPORTE = 'pasaporte'
+    TIPO_DOCUMENTO_OTRO = 'otro'
+    TIPOS_DOCUMENTO = [
+        (TIPO_DOCUMENTO_DNI, 'DNI'),
+        (TIPO_DOCUMENTO_CUIT, 'CUIT'),
+        (TIPO_DOCUMENTO_CUIL, 'CUIL'),
+        (TIPO_DOCUMENTO_PASAPORTE, 'Pasaporte'),
+        (TIPO_DOCUMENTO_OTRO, 'Otro'),
+    ]
+
+    CONDICION_IVA_CONSUMIDOR_FINAL = 'consumidor_final'
+    CONDICION_IVA_RESPONSABLE_INSCRIPTO = 'responsable_inscripto'
+    CONDICION_IVA_MONOTRIBUTO = 'monotributo'
+    CONDICION_IVA_EXENTO = 'exento'
+    CONDICIONES_IVA = [
+        (CONDICION_IVA_CONSUMIDOR_FINAL, 'Consumidor Final'),
+        (CONDICION_IVA_RESPONSABLE_INSCRIPTO, 'Responsable Inscripto'),
+        (CONDICION_IVA_MONOTRIBUTO, 'Monotributo'),
+        (CONDICION_IVA_EXENTO, 'Exento'),
+    ]
+
+    nombre_o_razon_social = models.CharField(max_length=200)
+    tipo_documento = models.CharField(max_length=15, choices=TIPOS_DOCUMENTO, default=TIPO_DOCUMENTO_DNI)
+    numero_documento = models.CharField(max_length=50, unique=True, db_index=True)
+    condicion_iva = models.CharField(
+        max_length=30,
+        choices=CONDICIONES_IVA,
+        default=CONDICION_IVA_CONSUMIDOR_FINAL,
+    )
     direccion = models.CharField(max_length=250, blank=True, null=True)
-    condicion_iva = models.CharField(max_length=30)
+    telefono = models.CharField(max_length=50, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.razon_social
+        return self.nombre_o_razon_social
 
 class Pedido(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, null=True, blank=True)
@@ -87,6 +119,13 @@ class Venta(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2)
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
     estado = models.CharField(max_length=20, choices=ESTADOS, default=ESTADO_COMPLETADA)
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='ventas',
+    )
     vendedor = models.ForeignKey('auth.User', on_delete=models.PROTECT, related_name='ventas')
 
     def __str__(self):

@@ -20,7 +20,11 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
-        fields = ['id', 'cuit_dni', 'razon_social', 'direccion', 'condicion_iva']
+        fields = [
+            'id', 'nombre_o_razon_social', 'tipo_documento', 'numero_documento',
+            'condicion_iva', 'direccion', 'telefono', 'email', 'activo'
+        ]
+        read_only_fields = ['id']
 
 class InventarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,15 +43,27 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
 class VentaSerializer(serializers.ModelSerializer):
     detalles = DetalleVentaSerializer(many=True, read_only=True)
     vendedor_nombre = serializers.ReadOnlyField(source='vendedor.username')
+    cliente_nombre = serializers.ReadOnlyField(source='cliente.nombre_o_razon_social')
+    cliente = serializers.PrimaryKeyRelatedField(
+        queryset=Cliente.objects.filter(activo=True),
+        allow_null=True,
+        required=False,
+    )
     items = serializers.ListField(write_only=True, required=True, allow_empty=False)
 
     class Meta:
         model = Venta
         fields = [
             'id', 'fecha', 'total', 'metodo_pago', 'estado',
-            'vendedor', 'vendedor_nombre', 'detalles', 'items'
+            'cliente', 'cliente_nombre', 'vendedor', 'vendedor_nombre',
+            'detalles', 'items'
         ]
         read_only_fields = ['id', 'fecha', 'total', 'estado', 'vendedor']
+
+    def validate_cliente(self, value):
+        if value is not None and not value.activo:
+            raise serializers.ValidationError('No se puede asociar un cliente inactivo.')
+        return value
 
     def validate_items(self, value):
         for item in value:

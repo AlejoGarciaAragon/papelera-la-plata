@@ -45,14 +45,25 @@ class ClienteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
-    
-    # Nota: Como ModelViewSet incluye 'destroy' por defecto, si querés bloquear 
-    # estrictamente el DELETE en clientes para que no se borren nunca, podés hacer esto:
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['nombre_o_razon_social', 'numero_documento']
+    filterset_fields = ['condicion_iva', 'activo']
+
     def destroy(self, request, *args, **kwargs):
-        return Response(
-            {"error": "Los clientes no pueden ser eliminados."},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        cliente = self.get_object()
+        try:
+            cliente.delete()
+        except ProtectedError:
+            return Response(
+                {
+                    "error": (
+                        "No se puede eliminar el cliente porque tiene ventas, pedidos "
+                        "u otras operaciones asociadas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
@@ -99,7 +110,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
 class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
-    queryset = Venta.objects.select_related('vendedor').prefetch_related('detalles__producto').all()
+    queryset = Venta.objects.select_related('vendedor', 'cliente').prefetch_related('detalles__producto').all()
     serializer_class = VentaSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['estado', 'metodo_pago', 'vendedor']
@@ -158,6 +169,7 @@ class VentaViewSet(viewsets.ModelViewSet):
             venta = Venta.objects.create(
                 total=total,
                 metodo_pago=serializer.validated_data['metodo_pago'],
+                cliente=serializer.validated_data.get('cliente'),
                 estado=Venta.ESTADO_COMPLETADA,
                 vendedor=request.user
             )

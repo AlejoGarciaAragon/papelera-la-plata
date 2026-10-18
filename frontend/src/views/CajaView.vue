@@ -2,9 +2,10 @@
 import { useCajaView } from '../composables/useCajaView'
 
 const {
-  productosFiltrados, carrito, busqueda, metodoPago, cargando, procesandoVenta, error, exito,
+  productosFiltrados, carrito, busqueda, busquedaCliente, mostrarClientes, clienteId, metodoPago, cargando, procesandoVenta, error, exito,
+  clientesFiltrados, clienteSeleccionado,
   total, precio, stockDisponible, agregarProducto, buscarYAgregar, cambiarCantidad,
-  eliminarItem, confirmarVenta
+  eliminarItem, seleccionarCliente, seleccionarConsumidorFinal, alternarClientes, confirmarVenta
 } = useCajaView()
 </script>
 
@@ -70,6 +71,52 @@ const {
         </div>
 
         <div class="mt-5 border-t border-slate-100 pt-5">
+          <label class="block text-sm font-medium text-slate-600">
+            Cliente
+            <div class="relative mt-1">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm outline-none hover:border-teal-300 focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                @click="alternarClientes"
+              >
+                <span v-if="clienteSeleccionado" class="truncate text-slate-700">
+                  {{ clienteSeleccionado.nombre_o_razon_social }} · {{ clienteSeleccionado.tipo_documento.toUpperCase() }} {{ clienteSeleccionado.numero_documento }}
+                </span>
+                <span v-else class="text-slate-500">Consumidor Final</span>
+                <span class="ml-2 text-slate-400">⌄</span>
+              </button>
+
+              <div v-if="mostrarClientes" class="absolute inset-x-0 top-full z-10 mt-2 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+                <input
+                  v-model="busquedaCliente"
+                  autofocus
+                  class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-100"
+                  placeholder="Buscar por nombre, DNI o CUIT..."
+                  @click.stop
+                />
+                <button
+                  type="button"
+                  class="mt-2 block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-teal-700 hover:bg-teal-50"
+                  @click="seleccionarConsumidorFinal"
+                >
+                  Consumidor Final
+                </button>
+                <div class="mt-1 max-h-48 overflow-y-auto">
+                  <button
+                    v-for="cliente in clientesFiltrados"
+                    :key="cliente.id"
+                    type="button"
+                    class="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    @click="seleccionarCliente(cliente)"
+                  >
+                    <span class="block truncate font-medium text-slate-700">{{ cliente.nombre_o_razon_social }}</span>
+                    <span class="block text-xs text-slate-400">{{ cliente.tipo_documento.toUpperCase() }} {{ cliente.numero_documento }}</span>
+                  </button>
+                  <p v-if="!clientesFiltrados.length" class="px-3 py-3 text-center text-xs text-slate-400">No se encontraron clientes.</p>
+                </div>
+              </div>
+            </div>
+          </label>
           <label class="block text-sm font-medium text-slate-600">
             Método de pago
             <select v-model="metodoPago" class="campo">

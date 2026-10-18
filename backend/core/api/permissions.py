@@ -6,18 +6,17 @@ class RolAccessPermission(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # 2. Bloqueo global: Nadie puede eliminar clientes
-        if request.method == 'DELETE' and getattr(view, 'basename', '') == 'cliente':
-            return False
-
-        # 3. Permisos para Dueño (Acceso total al resto)
+        # 2. Permisos para Dueño (acceso total)
         if request.user.groups.filter(name='Dueno').exists():
             return True
 
         if getattr(view, 'basename', '') == 'venta' and request.method == 'POST':
             return request.user.groups.filter(name='Empleado').exists()
 
-        # 4. Permisos para Empleado (Solo lectura: GET, HEAD, OPTIONS)
+        if getattr(view, 'basename', '') == 'cliente' and request.method in ['POST', 'PUT', 'PATCH']:
+            return request.user.groups.filter(name='Empleado').exists()
+
+        # 3. Permisos para Empleado (solo lectura, alta y edición de clientes)
         if request.user.groups.filter(name='Empleado').exists():
             return request.method in permissions.SAFE_METHODS
 
