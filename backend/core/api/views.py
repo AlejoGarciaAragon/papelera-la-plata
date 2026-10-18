@@ -1,14 +1,18 @@
+from decimal import Decimal
+
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from core.models import Categoria, Cliente, DetallePedido, Producto
+from core.models import Categoria, Cliente, DetallePedido, DetalleVenta, Inventario, Producto, Venta
 from .serializers import (
     CategoriaSerializer, ClienteSerializer,
-    ProductoCreateSerializer, ProductoUpdateSerializer
+    ProductoCreateSerializer, ProductoUpdateSerializer, VentaSerializer
 )
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.db.models import ProtectedError
+from django.db import transaction
+from rest_framework.exceptions import ValidationError
 from .permissions import RolAccessPermission
 
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -86,3 +90,65 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VentaViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, RolAccessPermission]
+    queryset = Venta.objects.select_related('vendedor').prefetch_related('detalles__producto').all()
+    serializer_class = VentaSerializer
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        items = serializer.validated_data.pop('items')
+
+        productos_ids = [item['producto_id'] for item in items]
+        if len(productos_ids) != len(set(productos_ids)):
+            raise ValidationError({'items': 'No se puede repetir un producto en la misma venta.'})
+
+        with transaction.atomic():
+            inventarios = {}
+            for item in items:
+                try:
+                    inventario = Inventario.objects.select_for_update().select_related('producto').get(
+                        producto_id=item['producto_id']
+                    )
+                except Inventario.DoesNotExist:
+                    raise ValidationError({'items': f"El producto {item['producto_id']} no tiene inventario."})
+
+                producto = inventario.producto
+                if not producto.activo:
+                    raise ValidationError({'items': f'El producto "{producto.nombre}" está inactivo.'})
+                cantidad = item['cantidad']
+                stock_disponible = inventario.stock_fisico - inventario.stock_reservado
+                if stock_disponible < cantidad:
+                    raise ValidationError({
+                        'stock': f'No hay stock suficiente para "{producto.nombre}". Disponible: {stock_disponible}.'
+                    })
+                inventarios[producto.id] = (inventario, producto, cantidad)
+
+            total = sum(
+                (producto.precio_venta * cantidad for _, producto, cantidad in inventarios.values()),
+                Decimal('0.00')
+            )
+            venta = Venta.objects.create(
+                total=total,
+                metodo_pago=serializer.validated_data['metodo_pago'],
+                estado=Venta.ESTADO_COMPLETADA,
+                vendedor=request.user
+            )
+            for inventario, producto, cantidad in inventarios.values():
+                precio_unitario = producto.precio_venta
+                subtotal = precio_unitario * cantidad
+                inventario.stock_fisico -= cantidad
+                inventario.save(update_fields=['stock_fisico'])
+                DetalleVenta.objects.create(
+                    venta=venta,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    subtotal=subtotal
+                )
+
+        return Response(self.get_serializer(venta).data, status=status.HTTP_201_CREATED)

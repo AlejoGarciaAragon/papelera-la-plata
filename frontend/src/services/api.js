@@ -54,9 +54,13 @@ export async function apiFetch(url, options = {}, reintentar = true) {
 
   const data = response.status === 204 ? null : await response.json().catch(() => ({}))
   if (!response.ok) {
+    const detalle = data.error || data.detail || data.stock || data.items
+    const detalleTexto = Array.isArray(detalle) ? detalle.join(' ') : typeof detalle === 'object'
+      ? Object.values(detalle).flat().join(' ')
+      : detalle
     const mensaje = response.status === 401
       ? 'La sesión expiró, volvé a iniciar sesión.'
-      : data.error || data.detail || 'No se pudo completar la operación.'
+      : detalleTexto || 'No se pudo completar la operación.'
     throw new Error(mensaje)
   }
   return data

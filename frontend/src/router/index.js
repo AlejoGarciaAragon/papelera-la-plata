@@ -3,6 +3,7 @@ import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import ProductosView from '../views/ProductosView.vue'
 import CategoriasView from '../views/CategoriasView.vue'
+import CajaView from '../views/CajaView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,9 +63,15 @@ const router = createRouter({
     },
     {
       path: '/caja',
-      name: 'caja',
       component: DashboardView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'caja',
+          component: CajaView
+        }
+      ]
     },
     {
       path: '/stock',

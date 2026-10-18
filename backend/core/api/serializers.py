@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import Categoria, Cliente, Inventario, Producto
+from core.models import Categoria, Cliente, DetalleVenta, Inventario, Producto, Venta
 from django.db import transaction
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from decimal import Decimal
@@ -26,6 +26,42 @@ class InventarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inventario
         fields = ['stock_fisico', 'stock_reservado']
+
+
+class DetalleVentaSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+
+    class Meta:
+        model = DetalleVenta
+        fields = ['id', 'producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'subtotal']
+
+
+class VentaSerializer(serializers.ModelSerializer):
+    detalles = DetalleVentaSerializer(many=True, read_only=True)
+    vendedor_nombre = serializers.ReadOnlyField(source='vendedor.username')
+    items = serializers.ListField(write_only=True, required=True, allow_empty=False)
+
+    class Meta:
+        model = Venta
+        fields = [
+            'id', 'fecha', 'total', 'metodo_pago', 'estado',
+            'vendedor', 'vendedor_nombre', 'detalles', 'items'
+        ]
+        read_only_fields = ['id', 'fecha', 'total', 'estado', 'vendedor']
+
+    def validate_items(self, value):
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError('Cada ítem debe ser un objeto.')
+            if not item.get('producto_id'):
+                raise serializers.ValidationError('Cada ítem debe indicar producto_id.')
+            try:
+                cantidad = int(item.get('cantidad', 0))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError('La cantidad debe ser un número entero.')
+            if cantidad <= 0:
+                raise serializers.ValidationError('La cantidad debe ser mayor que cero.')
+        return value
 
 class ProductoCreateSerializer(serializers.ModelSerializer):
     # stock_inicial solo para crear

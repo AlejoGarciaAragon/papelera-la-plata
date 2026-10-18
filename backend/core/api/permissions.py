@@ -14,6 +14,9 @@ class RolAccessPermission(permissions.BasePermission):
         if request.user.groups.filter(name='Dueno').exists():
             return True
 
+        if getattr(view, 'basename', '') == 'venta' and request.method == 'POST':
+            return request.user.groups.filter(name='Empleado').exists()
+
         # 4. Permisos para Empleado (Solo lectura: GET, HEAD, OPTIONS)
         if request.user.groups.filter(name='Empleado').exists():
             return request.method in permissions.SAFE_METHODS
