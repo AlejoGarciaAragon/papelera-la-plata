@@ -8,7 +8,6 @@ export const dayKey = (d) => {
     return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 };
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-export const genCAE = () => Array.from({ length: 14 }, () => Math.floor(Math.random() * 10)).join('');
 export const tipoPorCondicion = (cond) => cond === 'Responsable Inscripto' ? 'Factura A' : 'Factura B';
 // Los precios de venta se redondean siempre hacia arriba a este múltiplo
 export const REDONDEO = 10;

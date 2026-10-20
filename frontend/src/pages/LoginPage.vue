@@ -20,7 +20,7 @@ async function submit() {
     if (ok)
         router.push('/caja');
     else
-        error.value = 'Usuario o contraseña incorrectos';
+      error.value = auth.error;
 }
 </script>
 
@@ -66,7 +66,7 @@ async function submit() {
               <span class="label">Usuario</span>
               <div class="relative">
                 <User class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta-300" />
-                <input v-model="usuario" class="input pl-9" placeholder="admin" autofocus required />
+                <input v-model="usuario" class="input pl-9" autocomplete="username" autofocus required />
               </div>
             </label>
             <label class="block">
@@ -83,13 +83,9 @@ async function submit() {
             <button class="btn-primary w-full py-3 text-base" :disabled="cargando">
               <Loader2 v-if="cargando" class="h-5 w-5 animate-spin" /><template v-else>Ingresar</template>
             </button>
-            <div class="flex items-center gap-2 rounded-xl bg-turquesa-50 px-4 py-3 text-xs text-turquesa-800">
-              <ShieldCheck class="h-4 w-4 shrink-0" />
-              <span>Demo: <b>admin / admin</b> o <b>caja / caja</b></span>
-            </div>
           </form>
         </div>
-        <p class="mt-6 text-center text-xs text-tinta-300">© {{ anio }} Papelera La Plata · Facturación electrónica ARCA</p>
+        <p class="mt-6 text-center text-xs text-tinta-300">© {{ anio }} Papelera La Plata · Gestión comercial</p>
       </div>
     </div>
   </div>

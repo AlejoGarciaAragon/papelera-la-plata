@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue';
 import EmptyState from '../components/EmptyState.vue';
 import Field from '../components/Field.vue';
 import StatCard from '../components/StatCard.vue';
-const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, toast } = useProductosPage();
+const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar } = useProductosPage();
 </script>
 
 <template>
@@ -128,7 +128,7 @@ const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin
     </template>
   </Modal>
 
-  <ConfirmDialog :open="!!borrar" title="Eliminar producto" @close="borrar = null" @confirm="borrar && (data.eliminarProducto(borrar.id), toast('Producto eliminado'))">
+  <ConfirmDialog :open="!!borrar" title="Eliminar producto" @close="borrar = null" @confirm="confirmarBorrar">
     ¿Seguro que querés eliminar <b>{{ borrar?.nombre }}</b>? Esta acción no se puede deshacer.
   </ConfirmDialog>
 </template>

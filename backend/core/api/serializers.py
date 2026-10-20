@@ -1,8 +1,10 @@
-from rest_framework import serializers
-from core.models import Categoria, Cliente, DetalleVenta, Inventario, Producto, Venta
-from django.db import transaction
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from decimal import Decimal
+
+from django.db import transaction
+from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from core.models import Caja, Categoria, Cliente, DetalleVenta, Inventario, MovimientoCaja, Producto, Venta
 
 
 class PapeleraTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -12,143 +14,192 @@ class PapeleraTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['role'] = 'Dueno' if 'Dueno' in grupos else grupos[0] if grupos else ''
         return data
 
+
+class OcultoField(serializers.Field):
+    def to_representation(self, value):
+        return not value
+
+    def to_internal_value(self, data):
+        return not bool(data)
+
+
+class CondicionIVAField(serializers.Field):
+    labels = {
+        'consumidor_final': 'Consumidor Final',
+        'responsable_inscripto': 'Responsable Inscripto',
+        'monotributo': 'Monotributista',
+        'exento': 'Exento',
+    }
+
+    def to_representation(self, value):
+        return self.labels.get(value, value)
+
+    def to_internal_value(self, data):
+        reverse = {label: key for key, label in self.labels.items()}
+        value = reverse.get(data, data)
+        if value not in self.labels:
+            raise serializers.ValidationError('Condición frente al IVA inválida.')
+        return value
+
+
+class MedioPagoField(serializers.Field):
+    labels = dict(Venta.METODOS_PAGO)
+
+    def to_representation(self, value):
+        return self.labels.get(value, value)
+
+    def to_internal_value(self, data):
+        reverse = {label: key for key, label in self.labels.items()}
+        value = reverse.get(data, data)
+        if value not in self.labels:
+            raise serializers.ValidationError('Medio de pago inválido.')
+        return value
+
+
 class CategoriaSerializer(serializers.ModelSerializer):
+    oculto = OcultoField(source='activo', required=False, default=True)
+
     class Meta:
         model = Categoria
-        fields = ['id', 'nombre', 'descripcion', 'activo']
+        fields = ['id', 'nombre', 'descripcion', 'color', 'oculto']
+
 
 class ClienteSerializer(serializers.ModelSerializer):
+    razonSocial = serializers.CharField(source='nombre_o_razon_social')
+    documento = serializers.CharField(source='numero_documento')
+    condicionIVA = CondicionIVAField(source='condicion_iva')
+    oculto = OcultoField(source='activo', required=False, default=True)
+
     class Meta:
         model = Cliente
-        fields = [
-            'id', 'nombre_o_razon_social', 'tipo_documento', 'numero_documento',
-            'condicion_iva', 'direccion', 'telefono', 'email', 'activo'
-        ]
+        fields = ['id', 'razonSocial', 'documento', 'condicionIVA', 'direccion', 'telefono', 'email', 'oculto']
         read_only_fields = ['id']
 
-class InventarioSerializer(serializers.ModelSerializer):
+
+class ProductoSerializer(serializers.ModelSerializer):
+    codigo = serializers.CharField(source='codigo_barra')
+    categoriaId = serializers.PrimaryKeyRelatedField(source='categoria', queryset=Categoria.objects.all(), allow_null=True, required=False)
+    categoriaNombre = serializers.CharField(source='categoria.nombre', read_only=True, allow_null=True)
+    precioCosto = serializers.DecimalField(source='precio_actual', max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+    ganancia = serializers.DecimalField(source='porcentaje_ganancia', max_digits=7, decimal_places=2, min_value=Decimal('0'))
+    precioVenta = serializers.DecimalField(source='precio_venta', max_digits=12, decimal_places=2, read_only=True)
+    stock = serializers.IntegerField(write_only=True, required=False, min_value=0, default=0)
+    stockMinimo = serializers.IntegerField(write_only=True, required=False, min_value=0, default=5)
+    oculto = OcultoField(source='activo', required=False, default=True)
+
     class Meta:
-        model = Inventario
-        fields = ['stock_fisico', 'stock_reservado']
+        model = Producto
+        fields = ['id', 'codigo', 'nombre', 'descripcion', 'categoriaId', 'categoriaNombre', 'precioCosto', 'ganancia', 'precioVenta', 'iva', 'stock', 'stockMinimo', 'oculto']
+        read_only_fields = ['id']
+
+    def validate_categoriaId(self, value):
+        if value and not value.activo and (not self.instance or self.instance.categoria_id != value.id):
+            raise serializers.ValidationError('No se puede asociar un producto a una categoría oculta.')
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        stock = validated_data.pop('stock', 0)
+        stock_minimo = validated_data.pop('stockMinimo', 5)
+        producto = Producto.objects.create(**validated_data)
+        Inventario.objects.create(producto=producto, stock_fisico=stock, stock_minimo=stock_minimo)
+        return producto
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        stock = validated_data.pop('stock', None)
+        stock_minimo = validated_data.pop('stockMinimo', None)
+        instance = super().update(instance, validated_data)
+        defaults = {}
+        if stock is not None:
+            defaults['stock_fisico'] = stock
+        if stock_minimo is not None:
+            defaults['stock_minimo'] = stock_minimo
+        if defaults:
+            Inventario.objects.update_or_create(producto=instance, defaults=defaults)
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        inventario = getattr(instance, 'inventario', None)
+        data['stock'] = inventario.stock_fisico if inventario else 0
+        data['stockMinimo'] = inventario.stock_minimo if inventario else 5
+        return data
 
 
-class DetalleVentaSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.ReadOnlyField(source='producto.nombre')
+ProductoCreateSerializer = ProductoSerializer
+ProductoUpdateSerializer = ProductoSerializer
 
-    class Meta:
-        model = DetalleVenta
-        fields = ['id', 'producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'subtotal']
+
+class VentaItemInputSerializer(serializers.Serializer):
+    productoId = serializers.PrimaryKeyRelatedField(source='producto', queryset=Producto.objects.filter(activo=True))
+    cantidad = serializers.IntegerField(min_value=1)
+
+
+class VentaCreateSerializer(serializers.Serializer):
+    clienteId = serializers.PrimaryKeyRelatedField(source='cliente', queryset=Cliente.objects.filter(activo=True), allow_null=True, required=False)
+    tipo = serializers.ChoiceField(choices=Venta.TIPOS_COMPROBANTE)
+    medioPago = MedioPagoField(source='metodo_pago')
+    items = VentaItemInputSerializer(many=True, allow_empty=False)
 
 
 class VentaSerializer(serializers.ModelSerializer):
-    detalles = DetalleVentaSerializer(many=True, read_only=True)
-    vendedor_nombre = serializers.ReadOnlyField(source='vendedor.username')
-    cliente_nombre = serializers.ReadOnlyField(source='cliente.nombre_o_razon_social')
-    cliente = serializers.PrimaryKeyRelatedField(
-        queryset=Cliente.objects.filter(activo=True),
-        allow_null=True,
-        required=False,
-    )
-    items = serializers.ListField(write_only=True, required=True, allow_empty=False)
+    numero = serializers.SerializerMethodField()
+    fecha = serializers.DateTimeField(read_only=True)
+    clienteId = serializers.IntegerField(source='cliente_id', read_only=True, allow_null=True)
+    clienteNombre = serializers.SerializerMethodField()
+    tipo = serializers.CharField(source='tipo_comprobante', read_only=True)
+    medioPago = MedioPagoField(source='metodo_pago', read_only=True)
+    items = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+    ivaTotal = serializers.SerializerMethodField()
+    cae = serializers.CharField(read_only=True)
+    caeVto = serializers.DateField(source='cae_vto', read_only=True, allow_null=True)
+    estadoARCA = serializers.CharField(source='estado_arca', read_only=True)
+    cajaId = serializers.IntegerField(source='caja_id', read_only=True, allow_null=True)
 
     class Meta:
         model = Venta
-        fields = [
-            'id', 'fecha', 'total', 'metodo_pago', 'estado',
-            'cliente', 'cliente_nombre', 'vendedor', 'vendedor_nombre',
-            'detalles', 'items'
-        ]
-        read_only_fields = ['id', 'fecha', 'total', 'estado', 'vendedor']
+        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId']
 
-    def validate_cliente(self, value):
-        if value is not None and not value.activo:
-            raise serializers.ValidationError('No se puede asociar un cliente inactivo.')
-        return value
+    def get_numero(self, obj):
+        return f'0001-{obj.pk:08d}'
 
-    def validate_items(self, value):
-        for item in value:
-            if not isinstance(item, dict):
-                raise serializers.ValidationError('Cada ítem debe ser un objeto.')
-            if not item.get('producto_id'):
-                raise serializers.ValidationError('Cada ítem debe indicar producto_id.')
-            try:
-                cantidad = int(item.get('cantidad', 0))
-            except (TypeError, ValueError):
-                raise serializers.ValidationError('La cantidad debe ser un número entero.')
-            if cantidad <= 0:
-                raise serializers.ValidationError('La cantidad debe ser mayor que cero.')
-        return value
+    def get_clienteNombre(self, obj):
+        return obj.cliente.nombre_o_razon_social if obj.cliente_id else 'Consumidor Final'
 
-class ProductoCreateSerializer(serializers.ModelSerializer):
-    # stock_inicial solo para crear
-    stock_inicial = serializers.IntegerField(write_only=True, default=0)
-    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), allow_null=False)
-    precio_actual = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
-    porcentaje_ganancia = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'))
-    categoria_nombre = serializers.ReadOnlyField(source='categoria.nombre')
-    inventario = InventarioSerializer(read_only=True)
-    precio_venta = serializers.ReadOnlyField()
+    def get_items(self, obj):
+        return [{
+            'productoId': detalle.producto_id,
+            'nombre': detalle.producto.nombre,
+            'cantidad': detalle.cantidad,
+            'precioUnitario': detalle.precio_unitario,
+            'iva': detalle.iva_porcentaje,
+        } for detalle in obj.detalles.all()]
+
+    def get_subtotal(self, obj):
+        subtotal = sum((detalle.subtotal / (Decimal('1') + Decimal(detalle.iva_porcentaje) / Decimal('100')) for detalle in obj.detalles.all()), Decimal('0'))
+        return subtotal.quantize(Decimal('0.01'))
+
+    def get_ivaTotal(self, obj):
+        return obj.total - self.get_subtotal(obj)
+
+
+class MovimientoCajaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoCaja
+        fields = ['id', 'fecha', 'tipo', 'concepto', 'monto']
+        read_only_fields = ['id', 'fecha']
+
+
+class CajaSerializer(serializers.ModelSerializer):
+    abiertaEn = serializers.DateTimeField(source='abierta_en', read_only=True)
+    cerradaEn = serializers.DateTimeField(source='cerrada_en', read_only=True, allow_null=True)
+    montoInicial = serializers.DecimalField(source='monto_inicial', max_digits=12, decimal_places=2, read_only=True)
+    montoCierre = serializers.DecimalField(source='monto_cierre', max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    usuario = serializers.CharField(source='usuario.username', read_only=True)
+    movimientos = MovimientoCajaSerializer(many=True, read_only=True)
 
     class Meta:
-        model = Producto
-        fields = [
-            'id', 'codigo_barra', 'nombre', 'descripcion',
-            'precio_actual', 'porcentaje_ganancia', 'precio_venta', 'tiendanube_id',
-            'categoria', 'categoria_nombre', 'activo', 'stock_inicial', 'inventario'
-        ]
-
-    def validate_stock_inicial(self, value):
-        if value < 0:
-            raise serializers.ValidationError("El stock inicial no puede ser negativo.")
-        return value
-
-    def validate_categoria(self, value):
-        if not value.activo:
-            raise serializers.ValidationError("No se puede asociar un producto a una categoría inactiva.")
-        return value
-
-    def create(self, validated_data):
-        stock_inicial = validated_data.pop('stock_inicial', 0)
-        
-        # Transacción atómica: si falla la creación del inventario, se revierte el producto
-        with transaction.atomic():
-            producto = Producto.objects.create(**validated_data)
-            Inventario.objects.create(
-                producto=producto,
-                stock_fisico=stock_inicial,
-                stock_reservado=0
-            )
-        return producto
-
-class ProductoUpdateSerializer(serializers.ModelSerializer):
-    # Sin stock_inicial para proteger el inventario en las actualizaciones (PUT/PATCH)
-    categoria_nombre = serializers.ReadOnlyField(source='categoria.nombre')
-    inventario = InventarioSerializer(read_only=True)
-    stock_fisico = serializers.IntegerField(write_only=True, required=False, min_value=0)
-    categoria = serializers.PrimaryKeyRelatedField(queryset=Categoria.objects.all(), allow_null=False, required=False)
-    precio_actual = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'), required=False)
-    porcentaje_ganancia = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'), required=False)
-    precio_venta = serializers.ReadOnlyField()
-
-    def validate_categoria(self, value):
-        if not value.activo:
-            raise serializers.ValidationError("No se puede asociar un producto a una categoría inactiva.")
-        return value
-
-    class Meta:
-        model = Producto
-        fields = [
-            'id', 'codigo_barra', 'nombre', 'descripcion',
-            'precio_actual', 'porcentaje_ganancia', 'precio_venta', 'tiendanube_id',
-            'categoria', 'categoria_nombre', 'activo', 'inventario', 'stock_fisico'
-        ]
-
-    def update(self, instance, validated_data):
-        stock_fisico = validated_data.pop('stock_fisico', None)
-        instance = super().update(instance, validated_data)
-        if stock_fisico is not None:
-            Inventario.objects.update_or_create(
-                producto=instance,
-                defaults={'stock_fisico': stock_fisico}
-            )
-        return instance
+        model = Caja
+        fields = ['id', 'abiertaEn', 'cerradaEn', 'montoInicial', 'montoCierre', 'usuario', 'movimientos']

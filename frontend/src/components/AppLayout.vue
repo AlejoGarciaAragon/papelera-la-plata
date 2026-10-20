@@ -1,20 +1,31 @@
-<script setup>import { ref, watch } from 'vue';
+<script setup>import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { LogOut, Menu, X, CircleDot, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next';
 import { SECCIONES } from '../lib/sections';
 import { useAuthStore } from '../stores/auth';
 import { useDataStore } from '../stores/data';
+import { useToastStore } from '../stores/toast';
 import LogoMark from './LogoMark.vue';
 const SIDEBAR_KEY = 'papelera-la-plata:sidebar-colapsado';
 const auth = useAuthStore();
 const data = useDataStore();
+const toast = useToastStore();
 const route = useRoute();
 const router = useRouter();
 const open = ref(false);
 const colapsado = ref(localStorage.getItem(SIDEBAR_KEY) === '1');
 watch(colapsado, (v) => localStorage.setItem(SIDEBAR_KEY, v ? '1' : '0'));
+watch(() => data.error, (message) => message && toast.push(message, 'error'), { immediate: true });
+window.addEventListener('auth:expired', () => router.replace('/login'));
 const hoyRaw = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
 const hoy = hoyRaw.charAt(0).toUpperCase() + hoyRaw.slice(1);
+const formatoHora = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' });
+const hora = ref(formatoHora.format(new Date()));
+let reloj;
+onMounted(() => {
+  reloj = window.setInterval(() => { hora.value = formatoHora.format(new Date()); }, 60000);
+});
+onUnmounted(() => window.clearInterval(reloj));
 const alternarMenu = () => {
     if (window.matchMedia('(min-width: 1024px)').matches)
         colapsado.value = !colapsado.value;
@@ -90,13 +101,13 @@ const salir = () => {
           <PanelLeftOpen v-if="colapsado" class="hidden h-5 w-5 lg:block" />
           <PanelLeftClose v-else class="hidden h-5 w-5 lg:block" />
         </button>
-        <p class="text-sm text-tinta-500">{{ hoy }}</p>
+        <p class="text-sm text-tinta-500">{{ hoy }} <span aria-hidden="true">·</span> {{ hora }}</p>
         <div class="ml-auto flex items-center gap-3">
           <RouterLink to="/caja" :class="['flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold', data.cajaAbierta ? 'bg-turquesa-50 text-turquesa-700' : 'bg-rojo-50 text-rojo-700']">
             <CircleDot class="h-3.5 w-3.5" />{{ data.cajaAbierta ? 'Caja abierta' : 'Caja cerrada' }}
           </RouterLink>
           <span class="hidden items-center gap-2 rounded-full bg-tinta-50 px-3 py-1.5 text-xs font-semibold text-tinta-500 sm:flex">
-            <span class="h-2 w-2 rounded-full bg-turquesa-400" /> ARCA conectado
+            <span class="h-2 w-2 rounded-full bg-amarillo-400" /> Emisión ARCA pendiente
           </span>
         </div>
       </header>

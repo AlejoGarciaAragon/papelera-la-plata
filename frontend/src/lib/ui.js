@@ -1,4 +1,4 @@
-export const tipoBadge = (tipo) => tipo === 'Factura A' ? 'bg-rojo-200 text-rojo-800' : tipo === 'Factura B' ? 'bg-turquesa-200 text-turquesa-800' : 'bg-tinta-200 text-tinta';
+export const tipoBadge = (tipo) => tipo === 'Factura A' ? 'bg-rojo-200 text-rojo-800' : tipo === 'Factura B' ? 'bg-turquesa-200 text-turquesa-800' : tipo === 'Factura C' ? 'bg-amarillo-200 text-amarillo-700' : 'bg-tinta-200 text-tinta';
 export const COLOR_MEDIO = {
     Efectivo: '#7fdcdc', 'Débito': '#f58f88', 'Crédito': '#b9bcc8', 'Cuenta DNI': '#f8db8f', 'Mercado Pago': '#c9bbfb',
 };

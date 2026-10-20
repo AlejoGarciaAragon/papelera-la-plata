@@ -9,7 +9,7 @@ import Modal from '../components/Modal.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import EmptyState from '../components/EmptyState.vue';
 import Field from '../components/Field.vue';
-const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, toast } = useClientesPage();
+const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, confirmarBorrar } = useClientesPage();
 </script>
 
 <template>
@@ -59,9 +59,9 @@ const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats
               <p class="text-xs text-tinta-500">{{ stats[c.id]?.n ?? 0 }} comprobantes</p>
             </td>
             <td class="td whitespace-nowrap text-right">
-              <button class="rounded-lg p-2 text-tinta-500 hover:bg-tinta-50 hover:text-tinta disabled:opacity-30" :title="c.oculto ? 'Mostrar' : 'Ocultar'" :disabled="c.id === 'cf'" @click="alternar(c)"><Eye v-if="c.oculto" class="h-4 w-4" /><EyeOff v-else class="h-4 w-4" /></button>
+              <button class="rounded-lg p-2 text-tinta-500 hover:bg-tinta-50 hover:text-tinta disabled:opacity-30" :title="c.oculto ? 'Mostrar' : 'Ocultar'" @click="alternar(c)"><Eye v-if="c.oculto" class="h-4 w-4" /><EyeOff v-else class="h-4 w-4" /></button>
               <button class="rounded-lg p-2 text-tinta-500 hover:bg-tinta-50 hover:text-tinta" title="Editar" @click="form = { ...c }"><Pencil class="h-4 w-4" /></button>
-              <button class="rounded-lg p-2 text-tinta-500 hover:bg-rojo-50 hover:text-rojo-700 disabled:opacity-30" :disabled="c.id === 'cf'" title="Eliminar" @click="borrar = c"><Trash2 class="h-4 w-4" /></button>
+              <button class="rounded-lg p-2 text-tinta-500 hover:bg-rojo-50 hover:text-rojo-700" title="Eliminar" @click="borrar = c"><Trash2 class="h-4 w-4" /></button>
             </td>
           </tr>
         </tbody>
@@ -89,7 +89,7 @@ const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats
     </template>
   </Modal>
 
-  <ConfirmDialog :open="!!borrar" title="Eliminar cliente" @close="borrar = null" @confirm="borrar && (data.eliminarCliente(borrar.id), toast('Cliente eliminado'))">
+  <ConfirmDialog :open="!!borrar" title="Eliminar cliente" @close="borrar = null" @confirm="confirmarBorrar">
     ¿Seguro que querés eliminar a <b>{{ borrar?.razonSocial }}</b>?
   </ConfirmDialog>
 </template>

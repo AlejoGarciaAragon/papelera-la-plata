@@ -3,12 +3,13 @@ from decimal import Decimal
 from datetime import date
 
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from core.models import Categoria, Cliente, DetallePedido, DetalleVenta, Inventario, Producto, Venta
+from core.models import Caja, Categoria, Cliente, DetallePedido, DetalleVenta, Inventario, MovimientoCaja, Producto, Venta
 from .serializers import (
-    CategoriaSerializer, ClienteSerializer,
-    ProductoCreateSerializer, ProductoUpdateSerializer, VentaSerializer
+    CajaSerializer, CategoriaSerializer, ClienteSerializer, MovimientoCajaSerializer,
+    ProductoCreateSerializer, ProductoUpdateSerializer, VentaCreateSerializer, VentaSerializer
 )
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -19,6 +20,18 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from .permissions import RolAccessPermission
+
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        grupos = list(request.user.groups.values_list('name', flat=True))
+        return Response({
+            'usuario': request.user.username,
+            'nombre': request.user.get_full_name() or request.user.username,
+            'rol': 'Dueno' if 'Dueno' in grupos else grupos[0] if grupos else '',
+        })
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
@@ -31,9 +44,9 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         categoria = self.get_object()
 
-        if DetallePedido.objects.filter(producto__categoria=categoria).exists():
+        if categoria.productos.exists() or DetallePedido.objects.filter(producto__categoria=categoria).exists():
             return Response(
-                {"error": "No se puede eliminar la categoría porque tiene productos asociados a ventas."},
+            {"error": "No se puede eliminar la categoría porque tiene productos u operaciones asociados."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -108,6 +121,68 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class CajaViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated, RolAccessPermission]
+    serializer_class = CajaSerializer
+    queryset = Caja.objects.select_related('usuario').prefetch_related('movimientos', 'ventas__detalles__producto').all()
+
+    @action(detail=False, methods=['get'])
+    def actual(self, request):
+        caja = Caja.objects.filter(cerrada_en__isnull=True).first()
+        if caja is None:
+            return Response(None)
+        return Response(self.get_serializer(caja).data)
+
+    @action(detail=False, methods=['get'])
+    def ultima_cerrada(self, request):
+        caja = Caja.objects.filter(cerrada_en__isnull=False).order_by('-cerrada_en').first()
+        if caja is None:
+            return Response(None)
+        return Response(self.get_serializer(caja).data)
+
+    @action(detail=False, methods=['post'])
+    def abrir(self, request):
+        monto = request.data.get('montoInicial', 0)
+        try:
+            monto = Decimal(str(monto))
+            if monto < 0:
+                raise ValueError
+        except Exception:
+            raise ValidationError({'montoInicial': 'Ingresá un monto válido mayor o igual a cero.'})
+        with transaction.atomic():
+            if Caja.objects.select_for_update().filter(cerrada_en__isnull=True).exists():
+                raise ValidationError({'caja': 'Ya existe una caja abierta.'})
+            caja = Caja.objects.create(usuario=request.user, monto_inicial=monto)
+        return Response(self.get_serializer(caja).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cerrar(self, request, pk=None):
+        try:
+            monto = Decimal(str(request.data.get('montoCierre')))
+            if monto < 0:
+                raise ValueError
+        except Exception:
+            raise ValidationError({'montoCierre': 'Ingresá un monto válido mayor o igual a cero.'})
+        with transaction.atomic():
+            caja = Caja.objects.select_for_update().get(pk=pk)
+            if caja.cerrada_en:
+                raise ValidationError({'caja': 'La caja ya está cerrada.'})
+            caja.cerrada_en = timezone.now()
+            caja.monto_cierre = monto
+            caja.save(update_fields=['cerrada_en', 'monto_cierre'])
+        return Response(self.get_serializer(caja).data)
+
+    @action(detail=True, methods=['post'])
+    def movimientos(self, request, pk=None):
+        caja = self.get_object()
+        if caja.cerrada_en:
+            raise ValidationError({'caja': 'No se pueden registrar movimientos en una caja cerrada.'})
+        serializer = MovimientoCajaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        movimiento = MovimientoCaja.objects.create(caja=caja, usuario=request.user, **serializer.validated_data)
+        return Response(MovimientoCajaSerializer(movimiento).data, status=status.HTTP_201_CREATED)
+
+
 class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
     queryset = Venta.objects.select_related('vendedor', 'cliente').prefetch_related('detalles__producto').all()
@@ -133,23 +208,27 @@ class VentaViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = VentaCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        items = serializer.validated_data.pop('items')
+        values = serializer.validated_data
+        items = values['items']
 
-        productos_ids = [item['producto_id'] for item in items]
+        productos_ids = [item['producto'].id for item in items]
         if len(productos_ids) != len(set(productos_ids)):
             raise ValidationError({'items': 'No se puede repetir un producto en la misma venta.'})
 
         with transaction.atomic():
+            caja = Caja.objects.select_for_update().filter(cerrada_en__isnull=True).first()
+            if caja is None:
+                raise ValidationError({'caja': 'Abrí una caja antes de registrar una venta.'})
             inventarios = {}
             for item in items:
                 try:
                     inventario = Inventario.objects.select_for_update().select_related('producto').get(
-                        producto_id=item['producto_id']
+                        producto_id=item['producto'].id
                     )
                 except Inventario.DoesNotExist:
-                    raise ValidationError({'items': f"El producto {item['producto_id']} no tiene inventario."})
+                    raise ValidationError({'items': f"El producto {item['producto'].id} no tiene inventario."})
 
                 producto = inventario.producto
                 if not producto.activo:
@@ -162,16 +241,18 @@ class VentaViewSet(viewsets.ModelViewSet):
                     })
                 inventarios[producto.id] = (inventario, producto, cantidad)
 
-            total = sum(
-                (producto.precio_venta * cantidad for _, producto, cantidad in inventarios.values()),
-                Decimal('0.00')
-            )
+            total = Decimal('0.00')
+            for _, producto, cantidad in inventarios.values():
+                total += producto.precio_venta * cantidad
             venta = Venta.objects.create(
                 total=total,
-                metodo_pago=serializer.validated_data['metodo_pago'],
-                cliente=serializer.validated_data.get('cliente'),
+                metodo_pago=values['metodo_pago'],
+                tipo_comprobante=values['tipo'],
+                cliente=values.get('cliente'),
                 estado=Venta.ESTADO_COMPLETADA,
-                vendedor=request.user
+                estado_arca='No aplica' if values['tipo'] == Venta.TIPO_FACTURA_X else 'Pendiente',
+                vendedor=request.user,
+                caja=caja,
             )
             for inventario, producto, cantidad in inventarios.values():
                 precio_unitario = producto.precio_venta
@@ -183,7 +264,8 @@ class VentaViewSet(viewsets.ModelViewSet):
                     producto=producto,
                     cantidad=cantidad,
                     precio_unitario=precio_unitario,
-                    subtotal=subtotal
+                    subtotal=subtotal,
+                    iva_porcentaje=producto.iva,
                 )
 
         return Response(self.get_serializer(venta).data, status=status.HTTP_201_CREATED)
@@ -200,8 +282,8 @@ class VentaViewSet(viewsets.ModelViewSet):
 
         ventas = Venta.objects.filter(fecha__date=fecha, estado=Venta.ESTADO_COMPLETADA)
         recaudacion_por_metodo = {
-            metodo: ventas.filter(metodo_pago=metodo).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
-            for metodo, _ in Venta.METODOS_PAGO
+            label: ventas.filter(metodo_pago=metodo).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+            for metodo, label in Venta.METODOS_PAGO
         }
         return Response({
             'fecha': fecha,

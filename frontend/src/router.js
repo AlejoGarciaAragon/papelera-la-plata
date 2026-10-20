@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from './stores/auth';
+import { useDataStore } from './stores/data';
 import AppLayout from './components/AppLayout.vue';
 const router = createRouter({
     history: createWebHistory(),
@@ -20,11 +21,13 @@ const router = createRouter({
         { path: '/:pathMatch(.*)*', redirect: '/caja' },
     ],
 });
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
     const auth = useAuthStore();
-    if (!to.meta.publica && !auth.user)
+    if (!to.meta.publica && !(await auth.initialize()))
         return '/login';
     if (to.path === '/login' && auth.user)
         return '/caja';
+    if (!to.meta.publica)
+        await useDataStore().cargar();
 });
 export default router;

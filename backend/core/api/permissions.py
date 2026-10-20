@@ -13,6 +13,9 @@ class RolAccessPermission(permissions.BasePermission):
         if getattr(view, 'basename', '') == 'venta' and request.method == 'POST':
             return request.user.groups.filter(name='Empleado').exists()
 
+        if getattr(view, 'basename', '') == 'caja' and request.method == 'POST':
+            return request.user.groups.filter(name='Empleado').exists()
+
         if getattr(view, 'basename', '') == 'cliente' and request.method in ['POST', 'PUT', 'PATCH']:
             return request.user.groups.filter(name='Empleado').exists()
 

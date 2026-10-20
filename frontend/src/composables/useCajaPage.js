@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue';
 import { Minus, Plus, Trash2, ShoppingCart, Banknote, CreditCard, Wallet, Smartphone, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, } from 'lucide-vue-next';
 import { useDataStore } from '../stores/data';
-import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
+import { apiErrorMessage } from '../lib/apiError';
 import { seccion } from '../lib/sections';
 import { fmtDateTime, fmtMoney, fmtTime, tipoPorCondicion } from '../lib/format';
 import { tipoBadge } from '../lib/ui';
@@ -20,13 +20,13 @@ const MEDIOS = [
 ];
 export function useCajaPage() {
     const data = useDataStore();
-    const auth = useAuthStore();
     const { push: toast } = useToastStore();
     const montoInicial = ref('');
     const q = ref('');
     const cat = ref('');
     const carrito = ref([]);
-    const clienteId = ref('cf');
+    const consumidorFinal = computed(() => data.clientes.find((item) => item.condicionIVA === 'Consumidor Final'));
+    const clienteId = ref(consumidorFinal.value?.id ?? '');
     const tipo = ref('Factura B');
     const medio = ref('Efectivo');
     const pagaCon = ref('');
@@ -51,12 +51,12 @@ export function useCajaPage() {
     const catDe = (id) => data.categorias.find((c) => c.id === id);
     const visibles = computed(() => data.productos.filter((p) => {
         const t = q.value.toLowerCase();
-        return !p.oculto && !catDe(p.categoriaId)?.oculto && (!cat.value || p.categoriaId === cat.value) && (!t || p.nombre.toLowerCase().includes(t) || p.codigo.includes(t));
+        return !p.oculto && !catDe(p.categoriaId)?.oculto && (!cat.value || String(p.categoriaId) === String(cat.value)) && (!t || p.nombre.toLowerCase().includes(t) || p.codigo.includes(t));
     }));
     const cantEnCarrito = (id) => carrito.value.find((i) => i.productoId === id)?.cantidad ?? 0;
     const total = computed(() => carrito.value.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0));
     const neto = computed(() => carrito.value.reduce((s, i) => s + (i.cantidad * i.precioUnitario) / (1 + i.iva / 100), 0));
-    const cliente = computed(() => data.clientes.find((c) => c.id === clienteId.value) ?? data.clientes[0]);
+    const cliente = computed(() => data.clientes.find((c) => String(c.id) === String(clienteId.value)) ?? consumidorFinal.value ?? null);
     const unidades = computed(() => carrito.value.reduce((s, i) => s + i.cantidad, 0));
     const falta = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > 0 && Number(pagaCon.value) < total.value ? total.value - Number(pagaCon.value) : 0));
     const vuelto = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > total.value ? Number(pagaCon.value) - total.value : 0));
@@ -64,9 +64,14 @@ export function useCajaPage() {
         ...ventasCaja.value.map((v) => ({ id: v.id, fecha: v.fecha, tipo: 'Venta', concepto: `${v.tipo} ${v.numero} · ${v.clienteNombre}`, detalle: v.medioPago, monto: v.total, venta: v })),
         ...(caja.value?.movimientos ?? []).map((m) => ({ id: m.id, fecha: m.fecha, tipo: m.tipo, concepto: m.concepto, detalle: 'Efectivo', monto: m.monto, venta: undefined })),
     ].sort((a, b) => b.fecha.localeCompare(a.fecha)));
-    function abrir() {
-        data.abrirCaja(Number(montoInicial.value) || 0, auth.user?.usuario ?? '');
-        toast('Caja abierta. ¡Buenas ventas!');
+    async function abrir() {
+        try {
+            await data.abrirCaja(Number(montoInicial.value) || 0);
+            toast('Caja abierta. ¡Buenas ventas!');
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
     function agregar(id) {
         const p = data.productos.find((x) => x.id === id);
@@ -103,7 +108,7 @@ export function useCajaPage() {
     }
     function elegirCliente(id) {
         clienteId.value = id;
-        const c = data.clientes.find((x) => x.id === id);
+        const c = data.clientes.find((x) => String(x.id) === String(id));
         if (c)
             tipo.value = tipoPorCondicion(c.condicionIVA);
     }
@@ -111,30 +116,46 @@ export function useCajaPage() {
         if (!carrito.value.length)
             return;
         emitiendo.value = true;
-        await new Promise((r) => setTimeout(r, 900));
-        emitida.value = data.registrarVenta({ cliente: cliente.value, tipo: tipo.value, medioPago: medio.value, items: carrito.value });
-        emitiendo.value = false;
-        carrito.value = [];
-        pagaCon.value = '';
-        elegirCliente('cf');
-        medio.value = 'Efectivo';
+        try {
+            emitida.value = await data.registrarVenta({ cliente: cliente.value, tipo: tipo.value, medioPago: medio.value, items: carrito.value });
+            carrito.value = [];
+            pagaCon.value = '';
+            elegirCliente(consumidorFinal.value?.id ?? '');
+            medio.value = 'Efectivo';
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
+        finally {
+            emitiendo.value = false;
+        }
     }
-    function registrarMov() {
+    async function registrarMov() {
         if (!movForm.value.concepto || !Number(movForm.value.monto))
             return toast('Completá concepto y monto', 'error');
-        data.agregarMovimiento({ tipo: mov.value, concepto: movForm.value.concepto, monto: Number(movForm.value.monto) });
-        toast(`${mov.value} registrado`);
-        movForm.value = { concepto: '', monto: '' };
-        mov.value = null;
+        try {
+            await data.agregarMovimiento({ tipo: mov.value, concepto: movForm.value.concepto, monto: Number(movForm.value.monto) });
+            toast(`${mov.value} registrado`);
+            movForm.value = { concepto: '', monto: '' };
+            mov.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
     function abrirCierre() {
         contado.value = efectivoEsperado.value;
         cierre.value = true;
     }
-    function confirmarCierre() {
-        data.cerrarCaja(Number(contado.value) || 0);
-        cierre.value = false;
-        toast('Caja cerrada correctamente');
+    async function confirmarCierre() {
+        try {
+            await data.cerrarCaja(Number(contado.value) || 0);
+            cierre.value = false;
+            toast('Caja cerrada correctamente');
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
     function cerrarComprobante() {
         emitida.value = null;

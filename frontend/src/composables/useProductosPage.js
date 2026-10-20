@@ -2,6 +2,7 @@ import { computed, ref } from 'vue';
 import { useDataStore } from '../stores/data';
 import { useToastStore } from '../stores/toast';
 import { precioVentaDe } from '../lib/format';
+import { apiErrorMessage } from '../lib/apiError';
 export const FILTROS = [['todos', 'Todos'], ['bajo', 'Stock bajo'], ['sin', 'Sin stock']];
 export const IVAS = [21, 11, 0];
 export function useProductosPage() {
@@ -20,7 +21,7 @@ export function useProductosPage() {
         const t = q.value.toLowerCase();
         if (t && !p.nombre.toLowerCase().includes(t) && !p.codigo.includes(t))
             return false;
-        if (cat.value && p.categoriaId !== cat.value)
+        if (cat.value && String(p.categoriaId) !== String(cat.value))
             return false;
         if (filtro.value === 'bajo' && !(p.stock > 0 && p.stock <= p.stockMinimo))
             return false;
@@ -35,11 +36,16 @@ export function useProductosPage() {
     const barra = (p) => Math.min(100, (p.stock / Math.max(p.stockMinimo * 4, 1)) * 100);
     const toggle = (f) => (filtro.value = filtro.value === f ? 'todos' : f);
     const nuevo = () => (form.value = { id: '', codigo: '', nombre: '', categoriaId: data.categorias[0]?.id ?? '', precioCosto: 0, ganancia: 40, precioVenta: 0, iva: 21, stock: 0, stockMinimo: 5 });
-    function alternar(p) {
-        const oculto = data.alternarOculto('producto', p.id);
-        toast(oculto ? `"${p.nombre}" oculto. Lo encontrás en Ocultos.` : `"${p.nombre}" visible nuevamente`, 'info');
+    async function alternar(p) {
+        try {
+            const oculto = await data.alternarOculto('producto', p.id);
+            toast(oculto ? `"${p.nombre}" oculto. Lo encontrás en Ocultos.` : `"${p.nombre}" visible nuevamente`, 'info');
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
-    function guardar() {
+    async function guardar() {
         const f = form.value;
         if (!f)
             return;
@@ -49,9 +55,26 @@ export function useProductosPage() {
             return toast('Ya existe un producto con ese código', 'error');
         if (!(Number(f.precioCosto) > 0))
             return toast('El costo debe ser mayor a 0', 'error');
-        data.guardarProducto({ ...f, precioCosto: Number(f.precioCosto) || 0, ganancia: Number(f.ganancia) || 0, precioVenta: precioForm.value, stock: Number(f.stock) || 0, stockMinimo: Number(f.stockMinimo) || 0 });
-        toast(f.id ? 'Producto actualizado' : 'Producto creado');
-        form.value = null;
+        try {
+            await data.guardarProducto({ ...f, precioCosto: Number(f.precioCosto) || 0, ganancia: Number(f.ganancia) || 0, precioVenta: precioForm.value, stock: Number(f.stock) || 0, stockMinimo: Number(f.stockMinimo) || 0 });
+            toast(f.id ? 'Producto actualizado' : 'Producto creado');
+            form.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
-    return { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, toast };
+    async function confirmarBorrar() {
+        if (!borrar.value)
+            return;
+        try {
+            await data.eliminarProducto(borrar.value.id);
+            toast('Producto eliminado');
+            borrar.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
+    }
+    return { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar, toast };
 }

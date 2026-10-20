@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { useDataStore } from '../stores/data';
 import { useToastStore } from '../stores/toast';
+import { apiErrorMessage } from '../lib/apiError';
 export const CONDICIONES = ['Responsable Inscripto', 'Monotributista', 'Consumidor Final', 'Exento'];
 export function useClientesPage() {
     const data = useDataStore();
@@ -28,19 +29,41 @@ export function useClientesPage() {
         return (!t || c.razonSocial.toLowerCase().includes(t) || c.documento.includes(t)) && (!cond.value || c.condicionIVA === cond.value);
     }));
     const nuevo = () => (form.value = { id: '', razonSocial: '', documento: '', condicionIVA: 'Consumidor Final', email: '', telefono: '', direccion: '' });
-    function alternar(c) {
-        const oculto = data.alternarOculto('cliente', c.id);
-        toast(oculto ? `"${c.razonSocial}" oculto. Lo encontrás en Ocultos.` : `"${c.razonSocial}" visible nuevamente`, 'info');
+    async function alternar(c) {
+        try {
+            const oculto = await data.alternarOculto('cliente', c.id);
+            toast(oculto ? `"${c.razonSocial}" oculto. Lo encontrás en Ocultos.` : `"${c.razonSocial}" visible nuevamente`, 'info');
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
-    function guardar() {
+    async function guardar() {
         const f = form.value;
         if (!f)
             return;
         if (!f.razonSocial.trim() || !f.documento.trim())
             return toast('Razón social y CUIT/DNI son obligatorios', 'error');
-        data.guardarCliente(f);
-        toast(f.id ? 'Cliente actualizado' : 'Cliente creado');
-        form.value = null;
+        try {
+            await data.guardarCliente(f);
+            toast(f.id ? 'Cliente actualizado' : 'Cliente creado');
+            form.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
     }
-    return { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, toast };
+    async function confirmarBorrar() {
+        if (!borrar.value)
+            return;
+        try {
+            await data.eliminarCliente(borrar.value.id);
+            toast('Cliente eliminado');
+            borrar.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
+    }
+    return { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, confirmarBorrar, toast };
 }

@@ -90,11 +90,12 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
           <div class="relative min-w-0 flex-1">
             <User class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta-300" />
             <select class="input py-2 pl-9" title="Cliente" :value="clienteId" @change="elegirCliente($event.target.value)">
+              <option value="">Consumidor Final</option>
               <option v-for="c in data.clientes.filter((x) => !x.oculto || x.id === clienteId)" :key="c.id" :value="c.id">{{ c.razonSocial }}</option>
             </select>
           </div>
           <select v-model="tipo" title="Comprobante" :class="['input w-auto border-transparent py-2 font-semibold', tipoBadge(tipo)]">
-            <option>Factura A</option><option>Factura B</option><option>Factura C</option>
+            <option>Factura A</option><option>Factura B</option><option>Factura C</option><option>Factura X</option>
           </select>
         </div>
 
@@ -152,7 +153,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
           </div>
 
           <button class="btn-turquesa w-full py-3 text-lg" :disabled="!carrito.length || emitiendo || falta > 0" @click="cobrar">
-            <template v-if="emitiendo"><span class="h-5 w-5 animate-spin rounded-full border-2 border-tinta border-t-transparent" />Autorizando en ARCA...</template>
+            <template v-if="emitiendo"><span class="h-5 w-5 animate-spin rounded-full border-2 border-tinta border-t-transparent" />Guardando venta...</template>
             <template v-else><CheckCircle2 class="h-5 w-5" />{{ carrito.length ? `Cobrar ${fmtMoney(total)}` : 'Cobrar' }}</template>
           </button>
         </div>
@@ -229,7 +230,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
   <Modal :open="!!emitida" title="Comprobante emitido" size="lg" @close="cerrarComprobante">
     <template v-if="emitida">
       <div class="mb-4 flex items-center gap-3 rounded-xl bg-turquesa-50 px-4 py-3 text-sm text-turquesa-800">
-        <CheckCircle2 class="h-5 w-5" /> Comprobante autorizado por ARCA · CAE <b class="font-mono">{{ emitida.cae }}</b>
+        <CheckCircle2 class="h-5 w-5" /> Venta guardada · Autorización ARCA pendiente
       </div>
       <Comprobante :venta="emitida" />
     </template>

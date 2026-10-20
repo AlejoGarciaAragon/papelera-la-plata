@@ -18,7 +18,7 @@ const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, Trend
 
   <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard :label="esHoy ? 'Vendido hoy' : 'Vendido en el día'" :value="fmtMoney(total)" :icon="DollarSign" tone="bg-turquesa-400 text-tinta" :hint="fmtDate(dia + 'T12:00')" />
-    <StatCard label="Comprobantes" :value="String(delDia.length)" :icon="FileText" tone="bg-tinta-200 text-tinta" :hint="pendientes ? `${pendientes} pendiente(s) en ARCA` : 'Todos autorizados'" />
+    <StatCard label="Comprobantes" :value="String(delDia.length)" :icon="FileText" tone="bg-tinta-200 text-tinta" :hint="pendientes ? `${pendientes} pendiente(s) en ARCA` : delDia.length ? 'Todos autorizados' : 'Sin comprobantes'" />
     <StatCard label="Ticket promedio" :value="fmtMoney(promedio)" :icon="TrendingUp" tone="bg-rojo-200 text-rojo-800" />
     <StatCard label="IVA débito fiscal" :value="fmtMoney(iva)" :icon="Percent" tone="bg-amarillo-400 text-tinta" />
   </div>

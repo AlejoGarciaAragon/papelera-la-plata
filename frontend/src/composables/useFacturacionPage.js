@@ -29,7 +29,7 @@ export function useFacturacionPage() {
     const total = computed(() => delDia.value.reduce((s, v) => s + v.total, 0));
     const iva = computed(() => delDia.value.reduce((s, v) => s + v.ivaTotal, 0));
     const promedio = computed(() => (delDia.value.length ? total.value / delDia.value.length : 0));
-    const pendientes = computed(() => delDia.value.filter((v) => v.estadoARCA !== 'Aprobado').length);
+    const pendientes = computed(() => delDia.value.filter((v) => v.estadoARCA === 'Pendiente').length);
     const tooltipMoney = { callbacks: { label: (ctx) => ` ${fmtMoney(Number(ctx.raw))}` } };
     const barOptions = {
         responsive: true,

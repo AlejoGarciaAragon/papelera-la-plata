@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core.api.serializers import PapeleraTokenObtainPairSerializer
+from core.api.views import CurrentUserView
 
 
 class PapeleraTokenObtainPairView(TokenObtainPairView):
@@ -28,4 +29,5 @@ urlpatterns = [
     path('api/', include('core.api.urls')),  # <- Vinculamos las rutas de nuestra api
     path('api/token/', PapeleraTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/me/', CurrentUserView.as_view(), name='current_user'),
 ]

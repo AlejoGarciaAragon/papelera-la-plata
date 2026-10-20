@@ -7,7 +7,7 @@ import Modal from '../components/Modal.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import EmptyState from '../components/EmptyState.vue';
 import Field from '../components/Field.vue';
-const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, editar, alternar, guardar, pedirBorrar, toast } = useCategoriasPage();
+const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, editar, alternar, guardar, pedirBorrar, confirmarBorrar } = useCategoriasPage();
 </script>
 
 <template>
@@ -66,7 +66,7 @@ const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, edita
     </template>
   </Modal>
 
-  <ConfirmDialog :open="!!borrar" title="Eliminar categoría" @close="borrar = null" @confirm="borrar && (data.eliminarCategoria(borrar.id), toast('Categoría eliminada'))">
+  <ConfirmDialog :open="!!borrar" title="Eliminar categoría" @close="borrar = null" @confirm="confirmarBorrar">
     ¿Seguro que querés eliminar <b>{{ borrar?.nombre }}</b>? Esta acción no se puede deshacer.
   </ConfirmDialog>
 </template>

@@ -1,112 +1,129 @@
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
-import { buildSeedVentas, seedCategorias, seedClientes, seedProductos } from '../lib/seed';
-import { genCAE, uid } from '../lib/format';
-const KEY = 'papelera-la-plata:data:v6';
-function demo() {
-    const { ventas, cajas } = buildSeedVentas();
-    return {
-        categorias: structuredClone(seedCategorias),
-        productos: structuredClone(seedProductos),
-        clientes: structuredClone(seedClientes),
-        ventas,
-        cajas,
-    };
-}
-function initial() {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
+import { computed, ref } from 'vue';
+import api from '../lib/axios';
+
+const asList = (data) => Array.isArray(data) ? data : data.results || [];
+const normalizeProducto = (item) => ({ ...item, precioCosto: Number(item.precioCosto), ganancia: Number(item.ganancia), precioVenta: Number(item.precioVenta), iva: Number(item.iva), stock: Number(item.stock), stockMinimo: Number(item.stockMinimo) });
+const normalizeVenta = (item) => ({ ...item, total: Number(item.total), subtotal: Number(item.subtotal), ivaTotal: Number(item.ivaTotal), items: item.items.map((line) => ({ ...line, precioUnitario: Number(line.precioUnitario), cantidad: Number(line.cantidad), iva: Number(line.iva) })) });
+const normalizeCaja = (item) => ({ ...item, montoInicial: Number(item.montoInicial), montoCierre: item.montoCierre === null ? null : Number(item.montoCierre), movimientos: item.movimientos.map((movement) => ({ ...movement, monto: Number(movement.monto) })) });
+const upsert = (list, item) => {
+    const index = list.findIndex((current) => current.id === item.id);
+    if (index < 0)
+        list.push(item);
+    else
+        list.splice(index, 1, item);
+};
+
+export const useDataStore = defineStore('data', () => {
+    const categorias = ref([]);
+    const productos = ref([]);
+    const clientes = ref([]);
+    const ventas = ref([]);
+    const cajas = ref([]);
+    const loading = ref(false);
+    const loaded = ref(false);
+    const error = ref('');
+    const cajaAbierta = computed(() => cajas.value.find((caja) => !caja.cerradaEn));
+
+    async function cargar(force = false) {
+        if (loading.value || (loaded.value && !force))
+            return;
+        loading.value = true;
+        error.value = '';
         try {
-            return JSON.parse(raw);
+            const [categoriasResponse, productosResponse, clientesResponse, ventasResponse, cajasResponse] = await Promise.all([
+                api.get('categorias/'), api.get('productos/'), api.get('clientes/'), api.get('ventas/'), api.get('cajas/'),
+            ]);
+            categorias.value = asList(categoriasResponse.data);
+            productos.value = asList(productosResponse.data).map(normalizeProducto);
+            clientes.value = asList(clientesResponse.data);
+            ventas.value = asList(ventasResponse.data).map(normalizeVenta);
+            cajas.value = asList(cajasResponse.data).map(normalizeCaja);
+            loaded.value = true;
         }
-        catch {
-            /* datos corruptos: se regenera la demo */
+        catch (requestError) {
+            error.value = requestError.response?.data?.detail || 'No se pudieron cargar los datos del servidor.';
+        }
+        finally {
+            loading.value = false;
         }
     }
-    return demo();
-}
-const upsert = (list, item) => {
-    const i = list.findIndex((x) => x.id === item.id);
-    if (i >= 0)
-        list.splice(i, 1, item);
-    else
-        list.push(item);
-};
-export const useDataStore = defineStore('data', () => {
-    const init = initial();
-    const categorias = ref(init.categorias);
-    const productos = ref(init.productos);
-    const clientes = ref(init.clientes);
-    const ventas = ref(init.ventas);
-    const cajas = ref(init.cajas);
-    watch([categorias, productos, clientes, ventas, cajas], () => localStorage.setItem(KEY, JSON.stringify({
-        categorias: categorias.value, productos: productos.value, clientes: clientes.value, ventas: ventas.value, cajas: cajas.value,
-    })), { deep: true });
-    const cajaAbierta = computed(() => cajas.value.find((c) => !c.cerradaEn));
-    const guardarCategoria = (c) => upsert(categorias.value, { ...c, id: c.id || uid() });
-    const eliminarCategoria = (id) => (categorias.value = categorias.value.filter((c) => c.id !== id));
-    const guardarProducto = (p) => upsert(productos.value, { ...p, id: p.id || uid() });
-    const eliminarProducto = (id) => (productos.value = productos.value.filter((p) => p.id !== id));
-    const guardarCliente = (c) => upsert(clientes.value, { ...c, id: c.id || uid() });
-    const eliminarCliente = (id) => (clientes.value = clientes.value.filter((c) => c.id !== id));
-    /** Oculta o vuelve a mostrar un registro sin eliminarlo. Devuelve el nuevo estado. */
-    const alternarOculto = (tipo, id) => {
-        const list = tipo === 'categoria' ? categorias.value : tipo === 'producto' ? productos.value : clientes.value;
-        const item = list.find((x) => x.id === id);
-        if (item)
-            item.oculto = !item.oculto;
-        return !!item?.oculto;
-    };
-    const abrirCaja = (montoInicial, usuario) => cajas.value.push({ id: uid(), abiertaEn: new Date().toISOString(), montoInicial, usuario, movimientos: [] });
-    const cerrarCaja = (montoCierre) => {
-        const c = cajaAbierta.value;
-        if (c)
-            Object.assign(c, { cerradaEn: new Date().toISOString(), montoCierre });
-    };
-    const agregarMovimiento = (m) => cajaAbierta.value?.movimientos.push({ ...m, id: uid(), fecha: new Date().toISOString() });
-    const registrarVenta = (v) => {
-        const total = v.items.reduce((acc, it) => acc + it.cantidad * it.precioUnitario, 0);
-        const subtotal = +v.items.reduce((acc, it) => acc + (it.cantidad * it.precioUnitario) / (1 + it.iva / 100), 0).toFixed(2);
-        const ultimo = ventas.value.reduce((m, x) => Math.max(m, parseInt(x.numero.split('-')[1], 10)), 0);
-        const ahora = new Date();
-        const vto = new Date(ahora);
-        vto.setDate(vto.getDate() + 10);
-        const venta = {
-            id: uid(),
-            numero: `0001-${String(ultimo + 1).padStart(8, '0')}`,
-            fecha: ahora.toISOString(),
-            clienteId: v.cliente.id,
-            clienteNombre: v.cliente.razonSocial,
-            tipo: v.tipo,
-            medioPago: v.medioPago,
-            items: v.items.map((i) => ({ ...i })),
-            subtotal,
-            ivaTotal: +(total - subtotal).toFixed(2),
-            total,
-            cae: genCAE(),
-            caeVto: vto.toISOString(),
-            estadoARCA: 'Aprobado',
-            cajaId: cajaAbierta.value?.id ?? '',
+
+    async function guardar(tipo, item) {
+        const base = { categoria: 'categorias/', producto: 'productos/', cliente: 'clientes/' }[tipo];
+        const { data } = item.id ? await api.patch(`${base}${item.id}/`, item) : await api.post(base, item);
+        const list = { categoria: categorias, producto: productos, cliente: clientes }[tipo].value;
+        const normalized = tipo === 'producto' ? normalizeProducto(data) : data;
+        upsert(list, normalized);
+        return normalized;
+    }
+
+    async function eliminar(tipo, id) {
+        const base = { categoria: 'categorias/', producto: 'productos/', cliente: 'clientes/' }[tipo];
+        await api.delete(`${base}${id}/`);
+        const list = { categoria: categorias, producto: productos, cliente: clientes }[tipo];
+        list.value = list.value.filter((item) => item.id !== id);
+    }
+
+    async function alternarOculto(tipo, id) {
+        const list = { categoria: categorias, producto: productos, cliente: clientes }[tipo];
+        const item = list.value.find((record) => record.id === id);
+        if (!item)
+            return false;
+        const base = { categoria: 'categorias/', producto: 'productos/', cliente: 'clientes/' }[tipo];
+        const { data } = await api.patch(`${base}${id}/`, { oculto: !item.oculto });
+        upsert(list.value, data);
+        return data.oculto;
+    }
+
+    const guardarCategoria = (item) => guardar('categoria', item);
+    const eliminarCategoria = (id) => eliminar('categoria', id);
+    const guardarProducto = (item) => guardar('producto', item);
+    const eliminarProducto = (id) => eliminar('producto', id);
+    const guardarCliente = (item) => guardar('cliente', item);
+    const eliminarCliente = (id) => eliminar('cliente', id);
+
+    async function abrirCaja(montoInicial) {
+        const { data } = await api.post('cajas/abrir/', { montoInicial });
+        upsert(cajas.value, data);
+        return data;
+    }
+
+    async function cerrarCaja(montoCierre) {
+        const caja = cajaAbierta.value;
+        if (!caja)
+            return;
+        const { data } = await api.post(`cajas/${caja.id}/cerrar/`, { montoCierre });
+        upsert(cajas.value, data);
+        return data;
+    }
+
+    async function agregarMovimiento(movimiento) {
+        const caja = cajaAbierta.value;
+        if (!caja)
+            return;
+        const { data } = await api.post(`cajas/${caja.id}/movimientos/`, movimiento);
+        caja.movimientos.push(data);
+        return data;
+    }
+
+    async function registrarVenta(venta) {
+        const payload = {
+            clienteId: venta.cliente?.id ?? null,
+            tipo: venta.tipo,
+            medioPago: venta.medioPago,
+            items: venta.items.map((item) => ({ productoId: item.productoId, cantidad: item.cantidad })),
         };
-        ventas.value.push(venta);
-        v.items.forEach((it) => {
-            const p = productos.value.find((x) => x.id === it.productoId);
-            if (p)
-                p.stock = Math.max(0, p.stock - it.cantidad);
-        });
-        return venta;
-    };
-    const reiniciarDemo = () => {
-        const d = demo();
-        categorias.value = d.categorias;
-        productos.value = d.productos;
-        clientes.value = d.clientes;
-        ventas.value = d.ventas;
-        cajas.value = d.cajas;
-    };
+        const { data } = await api.post('ventas/', payload);
+        const ventaCreada = normalizeVenta(data);
+        upsert(ventas.value, ventaCreada);
+        await cargar(true);
+        return ventaCreada;
+    }
+
     return {
-        categorias, productos, clientes, ventas, cajas, cajaAbierta,
+        categorias, productos, clientes, ventas, cajas, cajaAbierta, loading, loaded, error, cargar,
         guardarCategoria, eliminarCategoria, guardarProducto, eliminarProducto, guardarCliente, eliminarCliente, alternarOculto,
-        abrirCaja, cerrarCaja, agregarMovimiento, registrarVenta, reiniciarDemo,
+        abrirCaja, cerrarCaja, agregarMovimiento, registrarVenta,
     };
 });
