@@ -1,9 +1,9 @@
-<script setup lang="ts">
-withDefaults(defineProps<{ aqua?: string; aquaBorde?: string; rojo?: string; rojoBorde?: string }>(), {
-  aqua: '#7fdcdc',
-  aquaBorde: '#5ccaca',
-  rojo: '#f58f88',
-  rojoBorde: '#ea7770',
+<script setup>
+defineProps({
+  aqua: { type: String, default: '#7fdcdc' },
+  aquaBorde: { type: String, default: '#5ccaca' },
+  rojo: { type: String, default: '#f58f88' },
+  rojoBorde: { type: String, default: '#ea7770' },
 })
 </script>
 

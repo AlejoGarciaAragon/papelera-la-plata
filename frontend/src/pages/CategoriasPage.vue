@@ -1,15 +1,13 @@
-<script setup lang="ts">
-import { Plus, Pencil, Trash2, Tags, Eye, EyeOff } from 'lucide-vue-next'
-import { seccion } from '../lib/sections'
-import { useCategoriasPage } from '../composables/useCategoriasPage'
-import PageHeader from '../components/PageHeader.vue'
-import SearchInput from '../components/SearchInput.vue'
-import Modal from '../components/Modal.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import EmptyState from '../components/EmptyState.vue'
-import Field from '../components/Field.vue'
-
-const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, editar, alternar, guardar, pedirBorrar, toast } = useCategoriasPage()
+<script setup>import { Plus, Pencil, Trash2, Tags, Eye, EyeOff } from 'lucide-vue-next';
+import { seccion } from '../lib/sections';
+import { useCategoriasPage } from '../composables/useCategoriasPage';
+import PageHeader from '../components/PageHeader.vue';
+import SearchInput from '../components/SearchInput.vue';
+import Modal from '../components/Modal.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import EmptyState from '../components/EmptyState.vue';
+import Field from '../components/Field.vue';
+const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, editar, alternar, guardar, pedirBorrar, toast } = useCategoriasPage();
 </script>
 
 <template>

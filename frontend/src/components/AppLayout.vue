@@ -1,33 +1,30 @@
-<script setup lang="ts">
-import { ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { LogOut, Menu, X, CircleDot, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
-import { SECCIONES } from '../lib/sections'
-import { useAuthStore } from '../stores/auth'
-import { useDataStore } from '../stores/data'
-import LogoMark from './LogoMark.vue'
-
-const SIDEBAR_KEY = 'papelera-la-plata:sidebar-colapsado'
-const auth = useAuthStore()
-const data = useDataStore()
-const route = useRoute()
-const router = useRouter()
-const open = ref(false)
-const colapsado = ref(localStorage.getItem(SIDEBAR_KEY) === '1')
-watch(colapsado, (v) => localStorage.setItem(SIDEBAR_KEY, v ? '1' : '0'))
-
-const hoyRaw = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
-const hoy = hoyRaw.charAt(0).toUpperCase() + hoyRaw.slice(1)
-
+<script setup>import { ref, watch } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { LogOut, Menu, X, CircleDot, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next';
+import { SECCIONES } from '../lib/sections';
+import { useAuthStore } from '../stores/auth';
+import { useDataStore } from '../stores/data';
+import LogoMark from './LogoMark.vue';
+const SIDEBAR_KEY = 'papelera-la-plata:sidebar-colapsado';
+const auth = useAuthStore();
+const data = useDataStore();
+const route = useRoute();
+const router = useRouter();
+const open = ref(false);
+const colapsado = ref(localStorage.getItem(SIDEBAR_KEY) === '1');
+watch(colapsado, (v) => localStorage.setItem(SIDEBAR_KEY, v ? '1' : '0'));
+const hoyRaw = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+const hoy = hoyRaw.charAt(0).toUpperCase() + hoyRaw.slice(1);
 const alternarMenu = () => {
-  if (window.matchMedia('(min-width: 1024px)').matches) colapsado.value = !colapsado.value
-  else open.value = true
-}
-
+    if (window.matchMedia('(min-width: 1024px)').matches)
+        colapsado.value = !colapsado.value;
+    else
+        open.value = true;
+};
 const salir = () => {
-  auth.logout()
-  router.push('/login')
-}
+    auth.logout();
+    router.push('/login');
+};
 </script>
 
 <template>

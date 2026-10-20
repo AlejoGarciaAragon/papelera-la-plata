@@ -1,6 +1,5 @@
-<script setup lang="ts">
-import type { Seccion } from '../lib/sections'
-defineProps<{ seccion: Seccion }>()
+<script setup>
+defineProps({ seccion: Object })
 </script>
 
 <template>

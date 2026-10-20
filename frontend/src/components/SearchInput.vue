@@ -1,7 +1,6 @@
-<script setup lang="ts">
-import { Search } from 'lucide-vue-next'
-const model = defineModel<string>({ required: true })
-withDefaults(defineProps<{ placeholder?: string }>(), { placeholder: 'Buscar...' })
+<script setup>import { Search } from 'lucide-vue-next';
+const model = defineModel({ required: true });
+defineProps({ placeholder: { type: String, default: 'Buscar...' } })
 </script>
 
 <template>

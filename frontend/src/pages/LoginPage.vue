@@ -1,27 +1,26 @@
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Eye, EyeOff, Lock, User, Loader2, ShieldCheck } from 'lucide-vue-next'
-import { useAuthStore } from '../stores/auth'
-import { SECCIONES } from '../lib/sections'
-import BrandLogo from '../components/BrandLogo.vue'
-
-const auth = useAuthStore()
-const router = useRouter()
-const usuario = ref('')
-const pass = ref('')
-const ver = ref(false)
-const error = ref('')
-const cargando = ref(false)
-const anio = new Date().getFullYear()
-
+<script setup>import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { Eye, EyeOff, Lock, User, Loader2, ShieldCheck } from 'lucide-vue-next';
+import { useAuthStore } from '../stores/auth';
+import { SECCIONES } from '../lib/sections';
+import BrandLogo from '../components/BrandLogo.vue';
+const auth = useAuthStore();
+const router = useRouter();
+const usuario = ref('');
+const pass = ref('');
+const ver = ref(false);
+const error = ref('');
+const cargando = ref(false);
+const anio = new Date().getFullYear();
 async function submit() {
-  error.value = ''
-  cargando.value = true
-  const ok = await auth.login(usuario.value, pass.value)
-  cargando.value = false
-  if (ok) router.push('/caja')
-  else error.value = 'Usuario o contraseña incorrectos'
+    error.value = '';
+    cargando.value = true;
+    const ok = await auth.login(usuario.value, pass.value);
+    cargando.value = false;
+    if (ok)
+        router.push('/caja');
+    else
+        error.value = 'Usuario o contraseña incorrectos';
 }
 </script>
 

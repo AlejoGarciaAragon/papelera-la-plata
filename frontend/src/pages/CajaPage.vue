@@ -1,16 +1,5 @@
-<script setup lang="ts">
-import { useCajaPage } from '../composables/useCajaPage'
-
-const {
-  Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History,
-  ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS,
-  PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge,
-  montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre,
-  verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado,
-  porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta,
-  vuelto, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, registrarMov,
-  abrirCierre, confirmarCierre, cerrarComprobante, print,
-} = useCajaPage()
+<script setup>import { useCajaPage } from '../composables/useCajaPage';
+const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
 </script>
 
 <template>
@@ -34,7 +23,7 @@ const {
           </Field>
           <button class="btn-primary w-full py-3 text-base"><Unlock class="h-5 w-5" />Abrir caja</button>
           <p v-if="ultimaCerrada" class="text-center text-xs text-tinta-500">
-            Último cierre: {{ fmtDateTime(ultimaCerrada.cerradaEn!) }} · {{ fmtMoney(ultimaCerrada.montoCierre ?? 0) }}
+            Último cierre: {{ fmtDateTime(ultimaCerrada.cerradaEn) }} · {{ fmtMoney(ultimaCerrada.montoCierre ?? 0) }}
           </p>
         </form>
       </div>
@@ -100,7 +89,7 @@ const {
         <div class="flex items-center gap-2 border-b border-tinta-100 p-3">
           <div class="relative min-w-0 flex-1">
             <User class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta-300" />
-            <select class="input py-2 pl-9" title="Cliente" :value="clienteId" @change="elegirCliente(($event.target as HTMLSelectElement).value)">
+            <select class="input py-2 pl-9" title="Cliente" :value="clienteId" @change="elegirCliente($event.target.value)">
               <option v-for="c in data.clientes.filter((x) => !x.oculto || x.id === clienteId)" :key="c.id" :value="c.id">{{ c.razonSocial }}</option>
             </select>
           </div>

@@ -1,10 +1,9 @@
-<script setup lang="ts">
-import { CheckCircle2, AlertTriangle, Info } from 'lucide-vue-next'
-import { useToastStore } from '../stores/toast'
-const store = useToastStore()
-const styles = { ok: 'border-turquesa-400', error: 'border-rojo-500', info: 'border-tinta' }
-const icons = { ok: CheckCircle2, error: AlertTriangle, info: Info }
-const iconCls = { ok: 'text-turquesa-600', error: 'text-rojo-500', info: '' }
+<script setup>import { CheckCircle2, AlertTriangle, Info } from 'lucide-vue-next';
+import { useToastStore } from '../stores/toast';
+const store = useToastStore();
+const styles = { ok: 'border-turquesa-400', error: 'border-rojo-500', info: 'border-tinta' };
+const icons = { ok: CheckCircle2, error: AlertTriangle, info: Info };
+const iconCls = { ok: 'text-turquesa-600', error: 'text-rojo-500', info: '' };
 </script>
 
 <template>

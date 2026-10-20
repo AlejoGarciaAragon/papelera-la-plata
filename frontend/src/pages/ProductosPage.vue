@@ -1,18 +1,16 @@
-<script setup lang="ts">
-import { Plus, Pencil, Trash2, Package, AlertTriangle, PackageX, Eye, EyeOff } from 'lucide-vue-next'
-import { seccion } from '../lib/sections'
-import { fmtMoney } from '../lib/format'
-import { stockInfo } from '../lib/ui'
-import { FILTROS, IVAS, useProductosPage } from '../composables/useProductosPage'
-import PageHeader from '../components/PageHeader.vue'
-import SearchInput from '../components/SearchInput.vue'
-import Modal from '../components/Modal.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import EmptyState from '../components/EmptyState.vue'
-import Field from '../components/Field.vue'
-import StatCard from '../components/StatCard.vue'
-
-const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, toast } = useProductosPage()
+<script setup>import { Plus, Pencil, Trash2, Package, AlertTriangle, PackageX, Eye, EyeOff } from 'lucide-vue-next';
+import { seccion } from '../lib/sections';
+import { fmtMoney } from '../lib/format';
+import { stockInfo } from '../lib/ui';
+import { FILTROS, IVAS, useProductosPage } from '../composables/useProductosPage';
+import PageHeader from '../components/PageHeader.vue';
+import SearchInput from '../components/SearchInput.vue';
+import Modal from '../components/Modal.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import EmptyState from '../components/EmptyState.vue';
+import Field from '../components/Field.vue';
+import StatCard from '../components/StatCard.vue';
+const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, toast } = useProductosPage();
 </script>
 
 <template>
@@ -54,7 +52,7 @@ const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin
             <td class="td font-medium">{{ p.nombre }}</td>
             <td class="td">
               <span v-if="catDe(p.categoriaId)" class="inline-flex items-center gap-2 text-sm">
-                <span class="h-2.5 w-2.5 rounded-full" :style="{ background: catDe(p.categoriaId)!.color }" />{{ catDe(p.categoriaId)!.nombre }}
+                <span class="h-2.5 w-2.5 rounded-full" :style="{ background: catDe(p.categoriaId)?.color }" />{{ catDe(p.categoriaId)?.nombre }}
               </span>
             </td>
             <td class="td text-right text-tinta-500">{{ fmtMoney(p.precioCosto) }}</td>

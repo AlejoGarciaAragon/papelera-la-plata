@@ -1,17 +1,16 @@
-<script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue'
-import { X } from 'lucide-vue-next'
-
-const props = withDefaults(defineProps<{ open: boolean; title: string; size?: 'sm' | 'md' | 'lg' | 'xl'; accent?: string }>(), {
-  size: 'md',
-  accent: 'bg-turquesa-400',
-})
-const emit = defineEmits<{ close: [] }>()
-const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
-
-const onKey = (e: KeyboardEvent) => e.key === 'Escape' && emit('close')
-watch(() => props.open, (o) => (o ? window.addEventListener('keydown', onKey) : window.removeEventListener('keydown', onKey)), { immediate: true })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+<script setup>import { onBeforeUnmount, watch } from 'vue';
+import { X } from 'lucide-vue-next';
+const props = defineProps({
+    open: Boolean,
+    title: String,
+    size: { type: String, default: 'md' },
+    accent: { type: String, default: 'bg-turquesa-400' },
+});
+const emit = defineEmits();
+const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' };
+const onKey = (e) => e.key === 'Escape' && emit('close');
+watch(() => props.open, (o) => (o ? window.addEventListener('keydown', onKey) : window.removeEventListener('keydown', onKey)), { immediate: true });
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>

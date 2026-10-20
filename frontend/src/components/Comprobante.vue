@@ -1,14 +1,11 @@
-<script setup lang="ts">
-import BrandLogo from './BrandLogo.vue'
-import { computed } from 'vue'
-import type { Venta } from '../types'
-import { fmtDate, fmtDateTime, fmtMoney } from '../lib/format'
-import { tipoBadge } from '../lib/ui'
-import EstadoARCA from './EstadoARCA.vue'
-
-const props = defineProps<{ venta: Venta }>()
-const letra = computed(() => props.venta.tipo.replace('Factura ', '').slice(0, 1))
-const codigo = computed(() => (letra.value === 'A' ? '01' : letra.value === 'B' ? '06' : '11'))
+<script setup>import BrandLogo from './BrandLogo.vue';
+import { computed } from 'vue';
+import { fmtDate, fmtDateTime, fmtMoney } from '../lib/format';
+import { tipoBadge } from '../lib/ui';
+import EstadoARCA from './EstadoARCA.vue';
+const props = defineProps({ venta: Object });
+const letra = computed(() => props.venta.tipo.replace('Factura ', '').slice(0, 1));
+const codigo = computed(() => (letra.value === 'A' ? '01' : letra.value === 'B' ? '06' : '11'));
 </script>
 
 <template>

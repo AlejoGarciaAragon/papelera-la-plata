@@ -1,17 +1,15 @@
-<script setup lang="ts">
-import { Plus, Pencil, Trash2, Users, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-vue-next'
-import { seccion } from '../lib/sections'
-import { fmtMoney } from '../lib/format'
-import { avatarColor, condColor } from '../lib/ui'
-import { CONDICIONES, useClientesPage } from '../composables/useClientesPage'
-import PageHeader from '../components/PageHeader.vue'
-import SearchInput from '../components/SearchInput.vue'
-import Modal from '../components/Modal.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import EmptyState from '../components/EmptyState.vue'
-import Field from '../components/Field.vue'
-
-const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, toast } = useClientesPage()
+<script setup>import { Plus, Pencil, Trash2, Users, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-vue-next';
+import { seccion } from '../lib/sections';
+import { fmtMoney } from '../lib/format';
+import { avatarColor, condColor } from '../lib/ui';
+import { CONDICIONES, useClientesPage } from '../composables/useClientesPage';
+import PageHeader from '../components/PageHeader.vue';
+import SearchInput from '../components/SearchInput.vue';
+import Modal from '../components/Modal.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import EmptyState from '../components/EmptyState.vue';
+import Field from '../components/Field.vue';
+const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, toast } = useClientesPage();
 </script>
 
 <template>

@@ -1,14 +1,5 @@
-<script setup lang="ts">
-import { useFacturacionPage } from '../composables/useFacturacionPage'
-
-const {
-  ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, TrendingUp, Percent, FileText,
-  Bar, Doughnut, PageHeader, SearchInput, Modal, EmptyState, StatCard, Comprobante, EstadoARCA,
-  seccion, dayKey, fmtDate, fmtMoney, fmtTime, COLOR_MEDIO, tipoBadge,
-  dia, q, ver, esHoy, delDia, filtradas, total, iva, promedio, pendientes,
-  barOptions, porHora, porMedio, medioChart, doughnutOptions, top, semanaChart, semanaOptions,
-  cajasDia, mover, exportar, print,
-} = useFacturacionPage()
+<script setup>import { useFacturacionPage } from '../composables/useFacturacionPage';
+const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, TrendingUp, Percent, FileText, Bar, Doughnut, PageHeader, SearchInput, Modal, EmptyState, StatCard, Comprobante, EstadoARCA, seccion, dayKey, fmtDate, fmtMoney, fmtTime, COLOR_MEDIO, tipoBadge, dia, q, ver, esHoy, delDia, filtradas, total, iva, promedio, pendientes, barOptions, porHora, porMedio, medioChart, doughnutOptions, top, semanaChart, semanaOptions, cajasDia, mover, exportar, print, } = useFacturacionPage();
 </script>
 
 <template>

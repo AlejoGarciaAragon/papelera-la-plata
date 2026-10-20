@@ -1,6 +1,5 @@
-<script setup lang="ts">
-import type { Component } from 'vue'
-defineProps<{ label: string; value: string; icon: Component; tone: string; hint?: string }>()
+<script setup>
+defineProps({ label: String, value: String, icon: Object, tone: String, hint: String })
 </script>
 
 <template>

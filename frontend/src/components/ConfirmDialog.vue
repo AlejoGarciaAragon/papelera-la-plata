@@ -1,9 +1,7 @@
-<script setup lang="ts">
-import { AlertTriangle } from 'lucide-vue-next'
-import Modal from './Modal.vue'
-
-defineProps<{ open: boolean; title: string }>()
-const emit = defineEmits<{ close: []; confirm: [] }>()
+<script setup>import { AlertTriangle } from 'lucide-vue-next';
+import Modal from './Modal.vue';
+defineProps({ open: Boolean, title: String })
+const emit = defineEmits(['close', 'confirm'])
 </script>
 
 <template>
