@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #app { height: 100%; }
+  body { @apply bg-tinta-50 text-tinta font-sans antialiased; }
+  h1, h2, h3 { @apply font-display uppercase tracking-wide; }
+}
+
+@layer components {
+  .card { @apply bg-white rounded-2xl shadow-card border border-tinta-100; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-tinta-700 text-white hover:bg-tinta; }
+  .btn-turquesa { @apply btn bg-turquesa-400 text-tinta hover:bg-turquesa-500; }
+  .btn-rojo { @apply btn bg-rojo-400 text-tinta hover:bg-rojo-500; }
+  .btn-ghost { @apply btn bg-white text-tinta border border-tinta-100 hover:bg-tinta-50; }
+  .input { @apply w-full rounded-xl border border-tinta-100 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-tinta-300 focus:border-turquesa-400 focus:ring-4 focus:ring-turquesa-100; }
+  .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-tinta-500; }
+  .th { @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-tinta-500; }
+  .td { @apply px-4 py-3 text-sm; }
+}
+
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #dcdde3; border-radius: 8px; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
+
+@keyframes slidein { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
