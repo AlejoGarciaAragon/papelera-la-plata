@@ -157,10 +157,11 @@ export const useDataStore = defineStore('data', () => {
         return ventaCreada;
     }
 
-    async function cobrarVenta(id, medioPago, pagaCon) {
+    async function cobrarVenta(id, medioPago, pagaCon, clienteId) {
         const payload = { medioPago };
         if (pagaCon !== undefined)
             payload.pagaCon = pagaCon;
+        payload.clienteId = clienteId || null;
         const { data } = await api.post(`ventas/${id}/cobrar/`, payload);
         const ventaCobrada = normalizeVenta(data);
         upsert(ventas.value, ventaCobrada);

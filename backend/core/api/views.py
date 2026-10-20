@@ -324,7 +324,11 @@ class VentaViewSet(viewsets.ModelViewSet):
                 raise ValidationError({'pagaCon': 'Ingresá un importe igual o mayor al total de la venta.'})
             venta.metodo_pago = metodo_pago
             venta.estado = Venta.ESTADO_COMPLETADA
-            venta.save(update_fields=['metodo_pago', 'estado'])
+            update_fields = ['metodo_pago', 'estado']
+            if 'cliente' in serializer.validated_data:
+                venta.cliente = serializer.validated_data['cliente']
+                update_fields.append('cliente')
+            venta.save(update_fields=update_fields)
         return Response(self.get_serializer(venta).data)
 
     @action(detail=False, methods=['get'])

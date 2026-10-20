@@ -21,13 +21,13 @@ const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, PageH
   <div class="card mb-6 overflow-hidden">
     <div class="flex flex-wrap items-center gap-3 border-b border-tinta-100 p-4">
       <h3 class="text-lg font-semibold">Comprobantes emitidos</h3>
-      <div class="ml-auto"><SearchInput v-model="q" placeholder="N°, cliente o CAE..." /></div>
+      <div class="ml-auto"><SearchInput v-model="q" placeholder="N°, cliente o empleado..." /></div>
     </div>
     <EmptyState v-if="!filtradas.length" :icon="Receipt" title="Sin comprobantes" text="No hay ventas registradas para esta fecha." />
     <div v-else class="scroll-thin overflow-x-auto">
       <table class="w-full min-w-[900px]">
         <thead class="bg-tinta-50">
-          <tr><th class="th">Hora</th><th class="th">Comprobante</th><th class="th">Cliente</th><th class="th">Medio</th><th class="th">CAE</th><th class="th">ARCA</th><th class="th text-right">Total</th></tr>
+          <tr><th class="th">Hora</th><th class="th">Comprobante</th><th class="th">Cliente</th><th class="th">Empleado</th><th class="th">Medio</th><th class="th">ARCA</th><th class="th text-right">Total</th></tr>
         </thead>
         <tbody class="divide-y divide-tinta-100">
           <tr v-for="v in filtradas" :key="v.id" class="cursor-pointer hover:bg-tinta-50/60" @click="ver = v">
@@ -39,8 +39,8 @@ const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, PageH
               </div>
             </td>
             <td class="td font-medium">{{ v.clienteNombre }}</td>
+            <td class="td">{{ v.vendedorNombre }}</td>
             <td class="td"><span class="inline-flex items-center gap-2 text-sm"><span class="h-2.5 w-2.5 rounded-full" :style="{ background: COLOR_MEDIO[v.medioPago] }" />{{ v.medioPago }}</span></td>
-            <td class="td font-mono text-xs text-tinta-500">{{ v.cae }}</td>
             <td class="td"><EstadoARCA :estado="v.estadoARCA" /></td>
             <td class="td text-right font-semibold">{{ fmtMoney(v.total) }}</td>
           </tr>

@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from core.models import Inventario, Producto
+from core.models import Cliente, Inventario, Producto
 
 
 class ApiIntegrationTests(APITestCase):
@@ -70,6 +70,7 @@ class ApiIntegrationTests(APITestCase):
 		}, format='json')
 		self.assertEqual(sale_response.status_code, 201)
 		self.assertEqual(sale_response.data['tipo'], 'Factura X')
+		self.assertEqual(sale_response.data['vendedorNombre'], 'owner-test')
 		self.assertEqual(sale_response.data['estadoARCA'], 'No aplica')
 		self.assertEqual(sale_response.data['cae'], '')
 		self.assertEqual(sale_response.data['cajaId'], caja_response.data['id'])
@@ -116,6 +117,7 @@ class ApiIntegrationTests(APITestCase):
 		self.assertEqual(productos_response.status_code, 200)
 		self.assertNotIn('precioCosto', productos_response.data[0])
 		self.assertNotIn('ganancia', productos_response.data[0])
+		self.assertEqual(productos_response.data[0]['stockMinimo'], 5)
 		self.assertEqual(self.client.patch(f"/api/productos/{product['id']}/", {'oculto': True}, format='json').status_code, 403)
 		self.assertEqual(self.client.post('/api/productos/', {}, format='json').status_code, 403)
 		categorias_response = self.client.get('/api/categorias/')
@@ -144,13 +146,21 @@ class ApiIntegrationTests(APITestCase):
 		}, format='json').status_code, 403)
 
 		self.client.force_authenticate(self.user)
+		cliente = Cliente.objects.create(
+			nombre_o_razon_social='Cliente elegido al cobrar',
+			tipo_documento='dni',
+			numero_documento='40123456',
+			condicion_iva='consumidor_final',
+		)
 		self.assertEqual(self.client.post(f"/api/cajas/{caja.data['id']}/cerrar/", {'montoCierre': 0}, format='json').status_code, 400)
 		url_cobro = f"/api/ventas/{venta.data['id']}/cobrar/"
 		self.assertEqual(self.client.post(url_cobro, {'medioPago': 'Efectivo'}, format='json').status_code, 400)
 		cobrada = self.client.post(url_cobro, {
-			'medioPago': 'Efectivo', 'pagaCon': venta.data['total'],
+			'medioPago': 'Efectivo', 'pagaCon': venta.data['total'], 'clienteId': cliente.id,
 		}, format='json')
 		self.assertEqual(cobrada.status_code, 200)
 		self.assertEqual(cobrada.data['estado'], 'completada')
 		self.assertEqual(cobrada.data['medioPago'], 'Efectivo')
+		self.assertEqual(cobrada.data['clienteId'], cliente.id)
+		self.assertEqual(cobrada.data['clienteNombre'], 'Cliente elegido al cobrar')
 		self.assertEqual(self.client.post(f"/api/cajas/{caja.data['id']}/cerrar/", {'montoCierre': 0}, format='json').status_code, 200)

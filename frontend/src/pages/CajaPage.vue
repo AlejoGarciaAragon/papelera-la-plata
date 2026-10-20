@@ -1,5 +1,5 @@
 <script setup>import { useCajaPage } from '../composables/useCajaPage';
-const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, esEmpleado, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, faltaCobro, vueltoCobro, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
+const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId, esEmpleado, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, faltaCobro, vueltoCobro, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
 </script>
 
 <template>
@@ -247,6 +247,12 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
           <p class="text-sm text-tinta-500">{{ ventaACobrar.vendedor }} · {{ ventaACobrar.clienteNombre }}</p>
           <p class="mt-2 font-display text-3xl font-bold">{{ fmtMoney(ventaACobrar.total) }}</p>
         </div>
+        <Field label="Cliente">
+          <select v-model="clienteCobroId" class="input">
+            <option value="">Consumidor Final</option>
+            <option v-for="cliente in data.clientes.filter((item) => !item.oculto || item.id === clienteCobroId)" :key="cliente.id" :value="cliente.id">{{ cliente.razonSocial }}</option>
+          </select>
+        </Field>
         <div class="grid grid-cols-5 gap-1.5">
           <button v-for="m in MEDIOS" :key="m.id" :class="['flex flex-col items-center gap-1 rounded-xl border-2 px-1 py-2 text-[11px] font-semibold', medioCobro === m.id ? 'border-turquesa-500 bg-turquesa-50' : 'border-tinta-100']" @click="medioCobro = m.id">
             <component :is="m.icon" class="h-4 w-4" />{{ m.id }}

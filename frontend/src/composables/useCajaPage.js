@@ -28,8 +28,7 @@ export function useCajaPage() {
     const q = ref('');
     const cat = ref('');
     const carrito = ref([]);
-    const consumidorFinal = computed(() => data.clientes.find((item) => item.condicionIVA === 'Consumidor Final'));
-    const clienteId = ref(consumidorFinal.value?.id ?? '');
+    const clienteId = ref('');
     const tipo = ref('Factura B');
     const medio = ref('Efectivo');
     const pagaCon = ref('');
@@ -44,6 +43,7 @@ export function useCajaPage() {
     const ventaACobrar = ref(null);
     const medioCobro = ref('Efectivo');
     const pagaConCobro = ref('');
+    const clienteCobroId = ref('');
     const caja = computed(() => data.cajaAbierta);
     const ventasCaja = computed(() => data.ventas.filter((v) => v.cajaId === caja.value?.id));
     const ventasPendientes = computed(() => ventasCaja.value.filter((venta) => venta.estado === 'pendiente'));
@@ -64,7 +64,7 @@ export function useCajaPage() {
     const cantEnCarrito = (id) => carrito.value.find((i) => i.productoId === id)?.cantidad ?? 0;
     const total = computed(() => carrito.value.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0));
     const neto = computed(() => carrito.value.reduce((s, i) => s + (i.cantidad * i.precioUnitario) / (1 + i.iva / 100), 0));
-    const cliente = computed(() => data.clientes.find((c) => String(c.id) === String(clienteId.value)) ?? consumidorFinal.value ?? null);
+    const cliente = computed(() => data.clientes.find((c) => String(c.id) === String(clienteId.value)) ?? null);
     const unidades = computed(() => carrito.value.reduce((s, i) => s + i.cantidad, 0));
     const falta = computed(() => medio.value === 'Efectivo' ? Math.max(0, total.value - (Number(pagaCon.value) || 0)) : 0);
     const vuelto = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > total.value ? Number(pagaCon.value) - total.value : 0));
@@ -127,6 +127,8 @@ export function useCajaPage() {
         const c = data.clientes.find((x) => String(x.id) === String(id));
         if (c)
             tipo.value = tipoPorCondicion(c.condicionIVA);
+        else
+            tipo.value = 'Factura B';
     }
     async function cobrar() {
         if (!carrito.value.length)
@@ -138,7 +140,7 @@ export function useCajaPage() {
             emitida.value = await data.registrarVenta({ cliente: cliente.value, tipo: tipo.value, medioPago: medio.value, items: carrito.value });
             carrito.value = [];
             pagaCon.value = '';
-            elegirCliente(consumidorFinal.value?.id ?? '');
+            elegirCliente('');
             medio.value = 'Efectivo';
         }
         catch (error) {
@@ -152,6 +154,7 @@ export function useCajaPage() {
         ventaACobrar.value = venta;
         medioCobro.value = 'Efectivo';
         pagaConCobro.value = '';
+        clienteCobroId.value = venta.clienteId ?? '';
     }
     async function cobrarPendiente() {
         const venta = ventaACobrar.value;
@@ -160,7 +163,7 @@ export function useCajaPage() {
         if (medioCobro.value === 'Efectivo' && (pagaConCobro.value === '' || Number(pagaConCobro.value) < venta.total))
             return toast('Ingresá un importe igual o mayor al total de la venta.', 'error');
         try {
-            await data.cobrarVenta(venta.id, medioCobro.value, medioCobro.value === 'Efectivo' ? Number(pagaConCobro.value) : undefined);
+            await data.cobrarVenta(venta.id, medioCobro.value, medioCobro.value === 'Efectivo' ? Number(pagaConCobro.value) : undefined, clienteCobroId.value);
             toast('Venta cobrada correctamente');
             ventaACobrar.value = null;
         }
@@ -207,7 +210,7 @@ export function useCajaPage() {
         montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre,
         verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado,
         porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, cliente, unidades, falta,
-        vuelto, vueltoCobro, faltaCobro, movimientos, esEmpleado, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro,
+        vuelto, vueltoCobro, faltaCobro, movimientos, esEmpleado, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId,
         abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov,
         abrirCierre, confirmarCierre, cerrarComprobante, print,
     };

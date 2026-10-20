@@ -43,7 +43,7 @@ const { data, esEmpleado, q, cat, filtro, verOcultos, form, borrar, catDe, lista
           <tr>
             <th class="th">Código</th><th class="th">Producto</th><th v-if="!esEmpleado" class="th">Categoría</th>
             <th v-if="!esEmpleado" class="th text-right">Costo</th><th v-if="!esEmpleado" class="th text-right">Ganancia</th><th class="th text-right">IVA</th><th class="th text-right">Venta</th>
-            <th v-if="!esEmpleado" class="th">Stock</th><th v-if="!esEmpleado" class="th text-right">Acciones</th>
+            <th class="th">Stock</th><th v-if="!esEmpleado" class="th text-right">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-tinta-100">
@@ -59,7 +59,7 @@ const { data, esEmpleado, q, cat, filtro, verOcultos, form, borrar, catDe, lista
             <td v-if="!esEmpleado" class="td text-right"><span :class="p.ganancia >= 40 ? 'text-turquesa-700' : 'text-amarillo-700'">{{ p.ganancia }}%</span></td>
             <td class="td text-right text-tinta-500">{{ p.iva }}%</td>
             <td class="td text-right font-semibold">{{ fmtMoney(p.precioVenta) }}</td>
-            <td v-if="!esEmpleado" class="td">
+            <td class="td">
               <div class="flex items-center gap-3">
                 <span :class="['inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', stockInfo(p).cls]">{{ stockInfo(p).label }}</span>
                 <div class="hidden h-1.5 w-16 overflow-hidden rounded-full bg-tinta-100 xl:block">

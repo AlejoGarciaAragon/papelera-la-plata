@@ -138,14 +138,19 @@ class ProductoConsultaSerializer(serializers.ModelSerializer):
     categoriaNombre = serializers.CharField(source='categoria.nombre', read_only=True, allow_null=True)
     precioVenta = serializers.DecimalField(source='precio_venta', max_digits=12, decimal_places=2, read_only=True)
     stock = serializers.SerializerMethodField()
+    stockMinimo = serializers.SerializerMethodField()
 
     class Meta:
         model = Producto
-        fields = ['id', 'codigo', 'nombre', 'categoriaId', 'categoriaNombre', 'precioVenta', 'stock', 'iva']
+        fields = ['id', 'codigo', 'nombre', 'categoriaId', 'categoriaNombre', 'precioVenta', 'stock', 'stockMinimo', 'iva']
 
     def get_stock(self, obj):
         inventario = getattr(obj, 'inventario', None)
         return inventario.stock_fisico if inventario else 0
+
+    def get_stockMinimo(self, obj):
+        inventario = getattr(obj, 'inventario', None)
+        return inventario.stock_minimo if inventario else 5
 
 
 class VentaItemInputSerializer(serializers.Serializer):
@@ -168,6 +173,7 @@ class VentaCreateSerializer(serializers.Serializer):
 class VentaPaymentSerializer(serializers.Serializer):
     medioPago = MedioPagoField(source='metodo_pago')
     pagaCon = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0'), required=False)
+    clienteId = serializers.PrimaryKeyRelatedField(source='cliente', queryset=Cliente.objects.filter(activo=True), allow_null=True, required=False)
 
     def validate(self, attrs):
         if attrs['metodo_pago'] == Venta.METODO_PAGO_PENDIENTE:
@@ -191,16 +197,20 @@ class VentaSerializer(serializers.ModelSerializer):
     cajaId = serializers.IntegerField(source='caja_id', read_only=True, allow_null=True)
     estado = serializers.CharField(read_only=True)
     vendedor = serializers.CharField(source='vendedor.username', read_only=True)
+    vendedorNombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Venta
-        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId', 'estado', 'vendedor']
+        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId', 'estado', 'vendedor', 'vendedorNombre']
 
     def get_numero(self, obj):
         return f'0001-{obj.pk:08d}'
 
     def get_clienteNombre(self, obj):
         return obj.cliente.nombre_o_razon_social if obj.cliente_id else 'Consumidor Final'
+
+    def get_vendedorNombre(self, obj):
+        return obj.vendedor.get_full_name().strip() or obj.vendedor.username
 
     def get_items(self, obj):
         return [{
