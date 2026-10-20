@@ -35,11 +35,12 @@ export function useFacturacionPage() {
     const cajasDia = computed(() => {
         const fechas = fechaCaja.value ? [fechaCaja.value] : fechasRecientes.value;
         return data.cajas
-            .filter((caja) => fechas.includes(fechaDeCaja(caja)))
+            .filter((caja) => caja.cerradaEn && fechas.includes(fechaDeCaja(caja)))
             .sort((a, b) => `${fechaDeCaja(b)}${b.abiertaEn}`.localeCompare(`${fechaDeCaja(a)}${a.abiertaEn}`));
     });
+    const ventasDeCaja = (caja) => data.ventas.filter((venta) => String(venta.cajaId) === String(caja.id));
     const resumenCaja = (caja) => {
-        const ventas = data.ventas.filter((venta) => String(venta.cajaId) === String(caja.id));
+        const ventas = ventasDeCaja(caja);
         const ventasPorMedio = Object.fromEntries(mediosCaja.map((medio) => [medio, 0]));
         ventas.forEach((venta) => {
             ventasPorMedio[venta.medioPago] = (ventasPorMedio[venta.medioPago] || 0) + Number(venta.total || 0);
@@ -72,13 +73,14 @@ export function useFacturacionPage() {
         d.setDate(d.getDate() + n);
         dia.value = dayKey(d);
     }
-    function exportar() {
+    function exportarVentasCaja(caja) {
+        const ventas = ventasDeCaja(caja);
         const filas = [['Numero', 'Fecha', 'Hora', 'Tipo', 'Cliente', 'Medio de pago', 'Neto', 'IVA', 'Total', 'CAE', 'Estado ARCA']];
-        delDia.value.forEach((v) => filas.push([v.numero, fmtDate(v.fecha), fmtTime(v.fecha), v.tipo, v.clienteNombre, v.medioPago, v.subtotal.toFixed(2), v.ivaTotal.toFixed(2), v.total.toFixed(2), v.cae, v.estadoARCA]));
+        ventas.forEach((v) => filas.push([v.numero, fmtDate(v.fecha), fmtTime(v.fecha), v.tipo, v.clienteNombre, v.medioPago, v.subtotal.toFixed(2), v.ivaTotal.toFixed(2), v.total.toFixed(2), v.cae, v.estadoARCA]));
         const csv = filas.map((f) => f.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\n');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
-        a.download = `ventas-${dia.value}.csv`;
+        a.download = `ventas-${fechaDeCaja(caja)}.csv`;
         a.click();
     }
     const print = () => window.print();
@@ -87,6 +89,6 @@ export function useFacturacionPage() {
         PageHeader, SearchInput, Modal, EmptyState, StatCard, Comprobante, EstadoARCA,
         seccion, dayKey, fmtDate, fmtDateTime, fmtMoney, fmtTime, COLOR_MEDIO, tipoBadge,
         data, dia, q, ver, esHoy, delDia, filtradas, total,
-        cajasDia, resumenCaja, mediosCaja, fechaCaja, fechaDeCaja, detalleCaja, resumenDetalleCaja, mover, exportar, print,
+        cajasDia, resumenCaja, mediosCaja, fechaCaja, fechaDeCaja, detalleCaja, resumenDetalleCaja, mover, exportarVentasCaja, print,
     };
 }
