@@ -175,6 +175,7 @@ class DetalleVenta(models.Model):
 
 class Caja(models.Model):
     usuario = models.ForeignKey('auth.User', on_delete=models.PROTECT, related_name='cajas')
+    fecha_operativa = models.DateField(null=True, blank=True, unique=True, editable=False)
     abierta_en = models.DateTimeField(auto_now_add=True)
     cerrada_en = models.DateTimeField(null=True, blank=True)
     monto_inicial = models.DecimalField(max_digits=12, decimal_places=2, default=0)

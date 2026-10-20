@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from django.db.models import ProtectedError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -149,10 +149,20 @@ class CajaViewSet(viewsets.ReadOnlyModelViewSet):
                 raise ValueError
         except Exception:
             raise ValidationError({'montoInicial': 'Ingresá un monto válido mayor o igual a cero.'})
-        with transaction.atomic():
-            if Caja.objects.select_for_update().filter(cerrada_en__isnull=True).exists():
-                raise ValidationError({'caja': 'Ya existe una caja abierta.'})
-            caja = Caja.objects.create(usuario=request.user, monto_inicial=monto)
+        fecha_operativa = timezone.localdate()
+        try:
+            with transaction.atomic():
+                if Caja.objects.filter(fecha_operativa=fecha_operativa).exists():
+                    raise ValidationError({'caja': 'Ya se abrió una caja para este día.'})
+                if Caja.objects.select_for_update().filter(cerrada_en__isnull=True).exists():
+                    raise ValidationError({'caja': 'Cerrá la caja abierta antes de iniciar otra.'})
+                caja = Caja.objects.create(
+                    usuario=request.user,
+                    monto_inicial=monto,
+                    fecha_operativa=fecha_operativa,
+                )
+        except IntegrityError:
+            raise ValidationError({'caja': 'Ya se abrió una caja para este día.'})
         return Response(self.get_serializer(caja).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])

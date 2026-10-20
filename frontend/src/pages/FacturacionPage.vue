@@ -1,5 +1,5 @@
 <script setup>import { useFacturacionPage } from '../composables/useFacturacionPage';
-const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, TrendingUp, Percent, FileText, Bar, Doughnut, PageHeader, SearchInput, Modal, EmptyState, StatCard, Comprobante, EstadoARCA, seccion, dayKey, fmtDate, fmtMoney, fmtTime, COLOR_MEDIO, tipoBadge, dia, q, ver, esHoy, delDia, filtradas, total, iva, promedio, pendientes, barOptions, porHora, porMedio, medioChart, doughnutOptions, top, semanaChart, semanaOptions, cajasDia, mover, exportar, print, } = useFacturacionPage();
+const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, PageHeader, SearchInput, Modal, EmptyState, StatCard, Comprobante, EstadoARCA, seccion, dayKey, fmtDate, fmtDateTime, fmtMoney, fmtTime, COLOR_MEDIO, tipoBadge, dia, q, ver, esHoy, delDia, filtradas, total, cajasDia, resumenCaja, mediosCaja, fechaCaja, fechaDeCaja, detalleCaja, resumenDetalleCaja, mover, exportar, print, } = useFacturacionPage();
 </script>
 
 <template>
@@ -11,67 +11,80 @@ const { ChevronLeft, ChevronRight, Download, Printer, Receipt, DollarSign, Trend
         <button class="p-2.5 hover:bg-tinta-50 disabled:opacity-30" :disabled="esHoy" @click="mover(1)"><ChevronRight class="h-4 w-4" /></button>
       </div>
       <button v-if="!esHoy" class="btn-ghost" @click="dia = dayKey(new Date())">Hoy</button>
-      <button class="btn-ghost no-print" @click="exportar"><Download class="h-4 w-4" />CSV</button>
-      <button class="btn-primary no-print" @click="print"><Printer class="h-4 w-4" />Imprimir reporte</button>
+      <button class="btn-ghost no-print" @click="exportar"><Download class="h-4 w-4" />Ventas del dia</button>
     </template>
   </PageHeader>
 
   <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard :label="esHoy ? 'Vendido hoy' : 'Vendido en el día'" :value="fmtMoney(total)" :icon="DollarSign" tone="bg-turquesa-400 text-tinta" :hint="fmtDate(dia + 'T12:00')" />
-    <StatCard label="Comprobantes" :value="String(delDia.length)" :icon="FileText" tone="bg-tinta-200 text-tinta" :hint="pendientes ? `${pendientes} pendiente(s) en ARCA` : delDia.length ? 'Todos autorizados' : 'Sin comprobantes'" />
-    <StatCard label="Ticket promedio" :value="fmtMoney(promedio)" :icon="TrendingUp" tone="bg-rojo-200 text-rojo-800" />
-    <StatCard label="IVA débito fiscal" :value="fmtMoney(iva)" :icon="Percent" tone="bg-amarillo-400 text-tinta" />
   </div>
 
-  <div class="mb-6 grid gap-6 xl:grid-cols-3">
-    <div class="card p-5 xl:col-span-2">
-      <h3 class="mb-4 text-lg font-semibold">Ventas por hora</h3>
-      <div class="h-64"><Bar :data="porHora" :options="barOptions" /></div>
+  <section class="card mb-6 p-5">
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h3 class="text-lg font-semibold">Cajas del mes</h3>
+        <p class="text-sm text-tinta-500">{{ fechaCaja ? `Cajas del ${fmtDate(fechaCaja + 'T12:00')}` : 'Últimos 3 días' }}</p>
+      </div>
+      <div class="flex flex-wrap items-end gap-2">
+        <label class="block">
+          <span class="label">Buscar por día</span>
+          <input v-model="fechaCaja" class="input w-auto" type="date" :max="dayKey(new Date())" />
+        </label>
+        <button v-if="fechaCaja" class="btn-ghost" @click="fechaCaja = ''">Últimos 3 días</button>
+        <span class="pb-2 text-sm text-tinta-500">{{ cajasDia.length }} {{ cajasDia.length === 1 ? 'caja' : 'cajas' }}</span>
+      </div>
     </div>
-    <div class="card p-5">
-      <h3 class="mb-4 text-lg font-semibold">Medios de pago</h3>
-      <template v-if="porMedio.length">
-        <div class="h-44"><Doughnut :data="medioChart" :options="doughnutOptions" /></div>
-        <ul class="mt-4 space-y-2 text-sm">
-          <li v-for="m in porMedio" :key="m.name" class="flex items-center gap-2">
-            <span class="h-3 w-3 rounded" :style="{ background: COLOR_MEDIO[m.name] }" />
-            <span class="flex-1">{{ m.name }}</span>
-            <span class="text-tinta-500">{{ ((m.value / total) * 100).toFixed(0) }}%</span>
-            <b class="w-28 text-right">{{ fmtMoney(m.value) }}</b>
-          </li>
-        </ul>
-      </template>
-      <p v-else class="py-10 text-center text-sm text-tinta-300">Sin datos</p>
-    </div>
-  </div>
-
-  <div class="mb-6 grid gap-6 xl:grid-cols-3">
-    <div class="card p-5">
-      <h3 class="mb-4 text-lg font-semibold">Más vendidos</h3>
-      <ol v-if="top.length" class="space-y-3">
-        <li v-for="(t, i) in top" :key="t.nombre" class="flex items-center gap-3">
-          <span :class="['grid h-8 w-8 place-items-center rounded-lg font-display font-bold', i === 0 ? 'bg-rojo-200 text-rojo-800' : i === 1 ? 'bg-turquesa-200 text-turquesa-800' : 'bg-tinta-50']">{{ i + 1 }}</span>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">{{ t.nombre }}</p>
-            <p class="text-xs text-tinta-500">{{ t.cant }} unidades</p>
+    <EmptyState v-if="!cajasDia.length" :icon="Receipt" :title="fechaCaja ? 'Sin cajas para ese día' : 'Sin cajas recientes'" :text="fechaCaja ? 'No hay cajas registradas en la fecha seleccionada.' : 'No se abrieron cajas en los últimos tres días.'" />
+    <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <button v-for="caja in cajasDia" :key="caja.id" class="rounded-xl border border-tinta-100 p-4 text-left transition hover:border-turquesa-300 hover:bg-turquesa-50/40" @click="detalleCaja = caja">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h4 class="font-display text-lg font-semibold uppercase">Caja día {{ fmtDate(fechaDeCaja(caja) + 'T12:00') }}</h4>
+            <p class="mt-1 text-sm text-tinta-500">{{ fmtTime(caja.abiertaEn) }} · {{ caja.usuario }}</p>
           </div>
-          <b class="text-sm">{{ fmtMoney(t.total) }}</b>
-        </li>
-      </ol>
-      <p v-else class="py-10 text-center text-sm text-tinta-300">Sin datos</p>
+          <span :class="['shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', caja.cerradaEn ? 'bg-tinta-50 text-tinta-500' : 'bg-turquesa-50 text-turquesa-700']">{{ caja.cerradaEn ? 'Cerrada' : 'Abierta' }}</span>
+        </div>
+        <div class="mt-4 flex items-end justify-between border-t border-tinta-100 pt-3">
+          <div>
+            <p class="text-xs text-tinta-500">Ventas ({{ resumenCaja(caja).cantidadVentas }})</p>
+            <b class="font-display text-xl">{{ fmtMoney(resumenCaja(caja).totalVentas) }}</b>
+          </div>
+          <span class="text-sm font-semibold text-turquesa-700">Ver detalle</span>
+        </div>
+      </button>
     </div>
-    <div class="card p-5 xl:col-span-2">
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 class="text-lg font-semibold">Últimos 7 días</h3>
-        <div class="flex gap-2">
-          <span v-for="c in cajasDia" :key="c.id" :class="['inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', c.cerradaEn ? 'bg-tinta-50 text-tinta-500' : 'bg-turquesa-50 text-turquesa-700']">
-            Caja {{ fmtTime(c.abiertaEn) }} – {{ c.cerradaEn ? fmtTime(c.cerradaEn) : 'abierta' }}
-          </span>
+  </section>
+
+  <Modal :open="!!detalleCaja" :title="detalleCaja ? `Caja día ${fmtDate(fechaDeCaja(detalleCaja) + 'T12:00')}` : ''" size="lg" accent="bg-rojo-400" @close="detalleCaja = null">
+    <div v-if="detalleCaja && resumenDetalleCaja" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="rounded-xl bg-turquesa-50 px-4 py-3"><p class="text-xs text-tinta-500">Ventas ({{ resumenDetalleCaja.cantidadVentas }})</p><p class="font-display text-xl font-bold">{{ fmtMoney(resumenDetalleCaja.totalVentas) }}</p></div>
+        <div class="rounded-xl bg-tinta-50 px-4 py-3"><p class="text-xs text-tinta-500">Efectivo esperado</p><p class="font-display text-xl font-bold">{{ fmtMoney(resumenDetalleCaja.efectivoEsperado) }}</p></div>
+        <div class="rounded-xl bg-tinta-50 px-4 py-3"><p class="text-xs text-tinta-500">Ingresos</p><p class="font-display text-xl font-bold">{{ fmtMoney(resumenDetalleCaja.ingresos) }}</p></div>
+        <div class="rounded-xl bg-rojo-50 px-4 py-3"><p class="text-xs text-tinta-500">Egresos</p><p class="font-display text-xl font-bold">{{ fmtMoney(resumenDetalleCaja.egresos) }}</p></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div v-for="medio in mediosCaja" :key="medio" class="flex items-center justify-between rounded-xl bg-tinta-50 px-4 py-3 text-sm">
+          <span class="text-tinta-500">{{ medio }}</span><b>{{ fmtMoney(resumenDetalleCaja.ventasPorMedio[medio]) }}</b>
         </div>
       </div>
-      <div class="h-56"><Bar :data="semanaChart" :options="semanaOptions" /></div>
+
+      <div class="rounded-xl border border-tinta-100 p-4 text-sm">
+        <div class="flex justify-between"><span class="text-tinta-500">Monto inicial</span><span>{{ fmtMoney(detalleCaja.montoInicial) }}</span></div>
+        <div class="flex justify-between"><span class="text-tinta-500">+ Ventas en efectivo</span><span>{{ fmtMoney(resumenDetalleCaja.ventasPorMedio.Efectivo) }}</span></div>
+        <div class="flex justify-between"><span class="text-tinta-500">+ Ingresos</span><span>{{ fmtMoney(resumenDetalleCaja.ingresos) }}</span></div>
+        <div class="flex justify-between"><span class="text-tinta-500">− Egresos</span><span>{{ fmtMoney(resumenDetalleCaja.egresos) }}</span></div>
+        <div class="mt-2 flex justify-between border-t border-tinta-100 pt-2 font-semibold"><span>Efectivo esperado</span><span>{{ fmtMoney(resumenDetalleCaja.efectivoEsperado) }}</span></div>
+        <template v-if="detalleCaja.cerradaEn">
+          <div class="mt-2 flex justify-between"><span class="text-tinta-500">Efectivo contado</span><span>{{ fmtMoney(resumenDetalleCaja.montoCierre) }}</span></div>
+          <div class="flex justify-between font-semibold"><span>Diferencia</span><span :class="resumenDetalleCaja.diferencia === 0 ? 'text-turquesa-700' : 'text-rojo-600'">{{ fmtMoney(resumenDetalleCaja.diferencia) }}</span></div>
+        </template>
+        <p class="mt-2 text-xs text-tinta-500">Abierta {{ fmtDateTime(detalleCaja.abiertaEn) }} · {{ detalleCaja.usuario }}<span v-if="detalleCaja.cerradaEn"> · Cerrada {{ fmtDateTime(detalleCaja.cerradaEn) }}</span></p>
+      </div>
+
     </div>
-  </div>
+  </Modal>
 
   <div class="card overflow-hidden">
     <div class="flex flex-wrap items-center gap-3 border-b border-tinta-100 p-4">

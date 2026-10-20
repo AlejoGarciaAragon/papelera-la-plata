@@ -84,7 +84,10 @@ const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin
       <div class="grid gap-4 sm:grid-cols-2">
         <Field label="Código"><input v-model="form.codigo" class="input font-mono" /></Field>
         <Field label="Categoría">
-          <select v-model="form.categoriaId" class="input"><option v-for="c in data.categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option></select>
+          <select v-model="form.categoriaId" class="input">
+            <option :value="null">Sin categoría</option>
+            <option v-for="c in data.categorias.filter((categoria) => !categoria.oculto || (form.id && categoria.id === form.categoriaId))" :key="c.id" :value="c.id">{{ c.nombre }}{{ c.oculto ? ' (oculta)' : '' }}</option>
+          </select>
         </Field>
       </div>
 

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from core.models import Inventario, Producto
@@ -61,6 +62,7 @@ class ApiIntegrationTests(APITestCase):
 		}, format='json').data
 		caja_response = self.client.post('/api/cajas/abrir/', {'montoInicial': 10000}, format='json')
 		self.assertEqual(caja_response.status_code, 201)
+		self.assertEqual(caja_response.data['fechaOperativa'], timezone.localdate().isoformat())
 
 		sale_response = self.client.post('/api/ventas/', {
 			'clienteId': None, 'tipo': 'Factura X', 'medioPago': 'Efectivo',
@@ -83,6 +85,8 @@ class ApiIntegrationTests(APITestCase):
 		}, format='json')
 		self.assertEqual(close_response.status_code, 200)
 		self.assertIsNotNone(close_response.data['cerradaEn'])
+		second_open_response = self.client.post('/api/cajas/abrir/', {'montoInicial': 10000}, format='json')
+		self.assertEqual(second_open_response.status_code, 400)
 
 	def test_sale_requires_open_cash_register(self):
 		category = self.client.post('/api/categorias/', {'nombre': 'Ventas', 'color': '#7fdcdc'}, format='json').data

@@ -35,7 +35,7 @@ export function useProductosPage() {
     const precioForm = computed(() => (form.value ? precioVentaDe(form.value.precioCosto, form.value.ganancia, form.value.iva) : 0));
     const barra = (p) => Math.min(100, (p.stock / Math.max(p.stockMinimo * 4, 1)) * 100);
     const toggle = (f) => (filtro.value = filtro.value === f ? 'todos' : f);
-    const nuevo = () => (form.value = { id: '', codigo: '', nombre: '', categoriaId: data.categorias[0]?.id ?? '', precioCosto: 0, ganancia: 40, precioVenta: 0, iva: 21, stock: 0, stockMinimo: 5 });
+    const nuevo = () => (form.value = { id: '', codigo: '', nombre: '', categoriaId: data.categorias.find((categoria) => !categoria.oculto)?.id ?? null, precioCosto: 0, ganancia: 40, precioVenta: 0, iva: 21, stock: 0, stockMinimo: 5 });
     async function alternar(p) {
         try {
             const oculto = await data.alternarOculto('producto', p.id);

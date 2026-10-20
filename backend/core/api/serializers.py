@@ -57,6 +57,7 @@ class MedioPagoField(serializers.Field):
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
+    descripcion = serializers.CharField(max_length=120, allow_blank=True, allow_null=True, required=False)
     oculto = OcultoField(source='activo', required=False, default=True)
 
     class Meta:
@@ -193,6 +194,7 @@ class MovimientoCajaSerializer(serializers.ModelSerializer):
 
 
 class CajaSerializer(serializers.ModelSerializer):
+    fechaOperativa = serializers.DateField(source='fecha_operativa', read_only=True, allow_null=True)
     abiertaEn = serializers.DateTimeField(source='abierta_en', read_only=True)
     cerradaEn = serializers.DateTimeField(source='cerrada_en', read_only=True, allow_null=True)
     montoInicial = serializers.DecimalField(source='monto_inicial', max_digits=12, decimal_places=2, read_only=True)
@@ -202,4 +204,4 @@ class CajaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Caja
-        fields = ['id', 'abiertaEn', 'cerradaEn', 'montoInicial', 'montoCierre', 'usuario', 'movimientos']
+        fields = ['id', 'fechaOperativa', 'abiertaEn', 'cerradaEn', 'montoInicial', 'montoCierre', 'usuario', 'movimientos']

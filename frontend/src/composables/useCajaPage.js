@@ -42,9 +42,9 @@ export function useCajaPage() {
     const ventasCaja = computed(() => data.ventas.filter((v) => v.cajaId === caja.value?.id));
     const totalVentas = computed(() => ventasCaja.value.reduce((s, v) => s + v.total, 0));
     const efectivoVentas = computed(() => ventasCaja.value.filter((v) => v.medioPago === 'Efectivo').reduce((s, v) => s + v.total, 0));
-    const ingresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + m.monto, 0) ?? 0);
-    const egresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Egreso').reduce((s, m) => s + m.monto, 0) ?? 0);
-    const efectivoEsperado = computed(() => (caja.value?.montoInicial ?? 0) + efectivoVentas.value + ingresos.value - egresos.value);
+    const ingresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + (Number(m.monto) || 0), 0) ?? 0);
+    const egresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Egreso').reduce((s, m) => s + (Number(m.monto) || 0), 0) ?? 0);
+    const efectivoEsperado = computed(() => (Number(caja.value?.montoInicial) || 0) + efectivoVentas.value + ingresos.value - egresos.value);
     const porMedio = (id) => ventasCaja.value.filter((v) => v.medioPago === id).reduce((s, v) => s + v.total, 0);
     const diferencia = computed(() => (Number(contado.value) || 0) - efectivoEsperado.value);
     const ultimaCerrada = computed(() => [...data.cajas].filter((c) => c.cerradaEn).sort((a, b) => b.cerradaEn.localeCompare(a.cerradaEn))[0]);

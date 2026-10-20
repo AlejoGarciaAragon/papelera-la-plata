@@ -5,7 +5,8 @@ import api from '../lib/axios';
 const asList = (data) => Array.isArray(data) ? data : data.results || [];
 const normalizeProducto = (item) => ({ ...item, precioCosto: Number(item.precioCosto), ganancia: Number(item.ganancia), precioVenta: Number(item.precioVenta), iva: Number(item.iva), stock: Number(item.stock), stockMinimo: Number(item.stockMinimo) });
 const normalizeVenta = (item) => ({ ...item, total: Number(item.total), subtotal: Number(item.subtotal), ivaTotal: Number(item.ivaTotal), items: item.items.map((line) => ({ ...line, precioUnitario: Number(line.precioUnitario), cantidad: Number(line.cantidad), iva: Number(line.iva) })) });
-const normalizeCaja = (item) => ({ ...item, montoInicial: Number(item.montoInicial), montoCierre: item.montoCierre === null ? null : Number(item.montoCierre), movimientos: item.movimientos.map((movement) => ({ ...movement, monto: Number(movement.monto) })) });
+const normalizeMovimiento = (movement) => ({ ...movement, monto: Number(movement.monto) });
+const normalizeCaja = (item) => ({ ...item, montoInicial: Number(item.montoInicial), montoCierre: item.montoCierre === null ? null : Number(item.montoCierre), movimientos: item.movimientos.map(normalizeMovimiento) });
 const upsert = (list, item) => {
     const index = list.findIndex((current) => current.id === item.id);
     if (index < 0)
@@ -85,8 +86,9 @@ export const useDataStore = defineStore('data', () => {
 
     async function abrirCaja(montoInicial) {
         const { data } = await api.post('cajas/abrir/', { montoInicial });
-        upsert(cajas.value, data);
-        return data;
+        const caja = normalizeCaja(data);
+        upsert(cajas.value, caja);
+        return caja;
     }
 
     async function cerrarCaja(montoCierre) {
@@ -94,8 +96,9 @@ export const useDataStore = defineStore('data', () => {
         if (!caja)
             return;
         const { data } = await api.post(`cajas/${caja.id}/cerrar/`, { montoCierre });
-        upsert(cajas.value, data);
-        return data;
+        const cajaCerrada = normalizeCaja(data);
+        upsert(cajas.value, cajaCerrada);
+        return cajaCerrada;
     }
 
     async function agregarMovimiento(movimiento) {
@@ -103,8 +106,9 @@ export const useDataStore = defineStore('data', () => {
         if (!caja)
             return;
         const { data } = await api.post(`cajas/${caja.id}/movimientos/`, movimiento);
-        caja.movimientos.push(data);
-        return data;
+        const movimientoGuardado = normalizeMovimiento(data);
+        caja.movimientos.push(movimientoGuardado);
+        return movimientoGuardado;
     }
 
     async function registrarVenta(venta) {

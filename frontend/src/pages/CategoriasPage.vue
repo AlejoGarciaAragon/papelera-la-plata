@@ -51,7 +51,7 @@ const { COLORES, data, q, verOcultas, ocultas, form, borrar, lista, nueva, edita
   <Modal :open="!!form" :title="form?.id ? 'Editar categoría' : 'Nueva categoría'" accent="bg-amarillo-400" @close="form = null">
     <div v-if="form" class="space-y-4">
       <Field label="Nombre"><input v-model="form.nombre" class="input" autofocus /></Field>
-      <Field label="Descripción"><textarea v-model="form.descripcion" class="input min-h-[80px]" /></Field>
+      <Field label="Descripción"><textarea v-model="form.descripcion" maxlength="120" rows="2" class="input h-[72px] resize-none" /></Field>
       <div>
         <span class="label">Color identificatorio</span>
         <div class="flex flex-wrap gap-2">
