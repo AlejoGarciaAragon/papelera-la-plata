@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import { Plus, Pencil, Trash2, Users, Mail, Phone, MapPin, Eye, EyeOff } from 'lucide-vue-next'
-import { useDataStore } from '../stores/data'
-import { useToastStore } from '../stores/toast'
 import { seccion } from '../lib/sections'
 import { fmtMoney } from '../lib/format'
 import { avatarColor, condColor } from '../lib/ui'
-import type { Cliente, CondicionIVA } from '../types'
+import { CONDICIONES, useClientesPage } from '../composables/useClientesPage'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
 import Modal from '../components/Modal.vue'
@@ -14,49 +11,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import EmptyState from '../components/EmptyState.vue'
 import Field from '../components/Field.vue'
 
-const CONDICIONES: CondicionIVA[] = ['Responsable Inscripto', 'Monotributista', 'Consumidor Final', 'Exento']
-const data = useDataStore()
-const { push: toast } = useToastStore()
-const q = ref('')
-const verOcultos = ref(false)
-const ocultos = computed(() => data.clientes.filter((c) => c.oculto).length)
-const base = computed(() => data.clientes.filter((c) => !!c.oculto === verOcultos.value))
-const cond = ref<'' | CondicionIVA>('')
-const form = ref<Cliente | null>(null)
-const borrar = ref<Cliente | null>(null)
-
-const iniciales = (n: string) => n.split(' ').slice(0, 2).map((x) => x[0]).join('').toUpperCase()
-
-const stats = computed(() => {
-  const m: Record<string, { n: number; total: number }> = {}
-  data.ventas.forEach((v) => {
-    m[v.clienteId] ??= { n: 0, total: 0 }
-    m[v.clienteId].n++
-    m[v.clienteId].total += v.total
-  })
-  return m
-})
-
-const lista = computed(() => base.value.filter((c) => {
-  const t = q.value.toLowerCase()
-  return (!t || c.razonSocial.toLowerCase().includes(t) || c.documento.includes(t)) && (!cond.value || c.condicionIVA === cond.value)
-}))
-
-const nuevo = () => (form.value = { id: '', razonSocial: '', documento: '', condicionIVA: 'Consumidor Final', email: '', telefono: '', direccion: '' })
-
-function alternar(c: Cliente) {
-  const oculto = data.alternarOculto('cliente', c.id)
-  toast(oculto ? `"${c.razonSocial}" oculto. Lo encontrás en Ocultos.` : `"${c.razonSocial}" visible nuevamente`, 'info')
-}
-
-function guardar() {
-  const f = form.value
-  if (!f) return
-  if (!f.razonSocial.trim() || !f.documento.trim()) return toast('Razón social y CUIT/DNI son obligatorios', 'error')
-  data.guardarCliente(f)
-  toast(f.id ? 'Cliente actualizado' : 'Cliente creado')
-  form.value = null
-}
+const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats, lista, nuevo, alternar, guardar, toast } = useClientesPage()
 </script>
 
 <template>
