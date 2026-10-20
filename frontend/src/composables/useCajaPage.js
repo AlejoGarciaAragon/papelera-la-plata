@@ -58,7 +58,7 @@ export function useCajaPage() {
     const neto = computed(() => carrito.value.reduce((s, i) => s + (i.cantidad * i.precioUnitario) / (1 + i.iva / 100), 0));
     const cliente = computed(() => data.clientes.find((c) => String(c.id) === String(clienteId.value)) ?? consumidorFinal.value ?? null);
     const unidades = computed(() => carrito.value.reduce((s, i) => s + i.cantidad, 0));
-    const falta = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > 0 && Number(pagaCon.value) < total.value ? total.value - Number(pagaCon.value) : 0));
+    const falta = computed(() => medio.value === 'Efectivo' ? Math.max(0, total.value - (Number(pagaCon.value) || 0)) : 0);
     const vuelto = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > total.value ? Number(pagaCon.value) - total.value : 0));
     const movimientos = computed(() => [
         ...ventasCaja.value.map((v) => ({ id: v.id, fecha: v.fecha, tipo: 'Venta', concepto: `${v.tipo} ${v.numero} · ${v.clienteNombre}`, detalle: v.medioPago, monto: v.total, venta: v })),
@@ -115,6 +115,8 @@ export function useCajaPage() {
     async function cobrar() {
         if (!carrito.value.length)
             return;
+        if (medio.value === 'Efectivo' && (pagaCon.value === '' || !Number.isFinite(Number(pagaCon.value)) || Number(pagaCon.value) < total.value))
+            return toast('Ingresá cuánto paga el cliente, igual o mayor al total.', 'error');
         emitiendo.value = true;
         try {
             emitida.value = await data.registrarVenta({ cliente: cliente.value, tipo: tipo.value, medioPago: medio.value, items: carrito.value });

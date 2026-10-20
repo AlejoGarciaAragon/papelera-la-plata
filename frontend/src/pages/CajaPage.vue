@@ -144,7 +144,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
           <div v-if="medio === 'Efectivo' && carrito.length" class="grid grid-cols-2 gap-2">
             <label class="relative">
               <span class="absolute left-3.5 top-1.5 text-[10px] font-semibold uppercase tracking-wider text-tinta-300">Paga con</span>
-              <input v-model.number="pagaCon" class="input pb-1.5 pt-5 text-base font-semibold" type="number" min="0" placeholder="$ 0" />
+              <input v-model.number="pagaCon" class="input pb-1.5 pt-5 text-base font-semibold" type="number" min="0.01" step="0.01" required placeholder="$ 0" />
             </label>
             <div :class="['rounded-xl px-3.5 py-1.5', falta > 0 ? 'bg-rojo-50' : vuelto > 0 ? 'bg-amarillo-100' : 'bg-tinta-50']">
               <p class="text-[10px] font-semibold uppercase tracking-wider text-tinta-500">{{ falta > 0 ? 'Falta' : 'Vuelto' }}</p>
