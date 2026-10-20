@@ -109,6 +109,7 @@ class Venta(models.Model):
     METODO_PAGO_CREDITO = 'credito'
     METODO_PAGO_CUENTA_DNI = 'cuenta_dni'
     METODO_PAGO_MERCADO_PAGO = 'mercado_pago'
+    METODO_PAGO_PENDIENTE = 'pendiente'
     METODOS_PAGO = [
         (METODO_PAGO_EFECTIVO, 'Efectivo'),
         (METODO_PAGO_TARJETA, 'Tarjeta'),
@@ -117,6 +118,7 @@ class Venta(models.Model):
         (METODO_PAGO_CREDITO, 'Crédito'),
         (METODO_PAGO_CUENTA_DNI, 'Cuenta DNI'),
         (METODO_PAGO_MERCADO_PAGO, 'Mercado Pago'),
+        (METODO_PAGO_PENDIENTE, 'Pendiente de cobro'),
     ]
 
     TIPO_FACTURA_A = 'Factura A'

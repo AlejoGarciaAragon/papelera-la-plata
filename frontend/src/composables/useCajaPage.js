@@ -1,6 +1,7 @@
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Minus, Plus, Trash2, ShoppingCart, Banknote, CreditCard, Wallet, Smartphone, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, } from 'lucide-vue-next';
 import { useDataStore } from '../stores/data';
+import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
 import { apiErrorMessage } from '../lib/apiError';
 import { seccion } from '../lib/sections';
@@ -20,7 +21,9 @@ const MEDIOS = [
 ];
 export function useCajaPage() {
     const data = useDataStore();
+    const auth = useAuthStore();
     const { push: toast } = useToastStore();
+    const esEmpleado = computed(() => auth.user?.rol === 'Empleado');
     const montoInicial = ref('');
     const q = ref('');
     const cat = ref('');
@@ -38,14 +41,19 @@ export function useCajaPage() {
     const verMovs = ref(false);
     const contado = ref('');
     const buscador = ref(null);
+    const ventaACobrar = ref(null);
+    const medioCobro = ref('Efectivo');
+    const pagaConCobro = ref('');
     const caja = computed(() => data.cajaAbierta);
     const ventasCaja = computed(() => data.ventas.filter((v) => v.cajaId === caja.value?.id));
-    const totalVentas = computed(() => ventasCaja.value.reduce((s, v) => s + v.total, 0));
-    const efectivoVentas = computed(() => ventasCaja.value.filter((v) => v.medioPago === 'Efectivo').reduce((s, v) => s + v.total, 0));
+    const ventasPendientes = computed(() => ventasCaja.value.filter((venta) => venta.estado === 'pendiente'));
+    const ventasCobradas = computed(() => ventasCaja.value.filter((venta) => venta.estado !== 'pendiente'));
+    const totalVentas = computed(() => ventasCobradas.value.reduce((s, v) => s + v.total, 0));
+    const efectivoVentas = computed(() => ventasCobradas.value.filter((v) => v.medioPago === 'Efectivo').reduce((s, v) => s + v.total, 0));
     const ingresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + (Number(m.monto) || 0), 0) ?? 0);
     const egresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Egreso').reduce((s, m) => s + (Number(m.monto) || 0), 0) ?? 0);
     const efectivoEsperado = computed(() => (Number(caja.value?.montoInicial) || 0) + efectivoVentas.value + ingresos.value - egresos.value);
-    const porMedio = (id) => ventasCaja.value.filter((v) => v.medioPago === id).reduce((s, v) => s + v.total, 0);
+    const porMedio = (id) => ventasCobradas.value.filter((v) => v.medioPago === id).reduce((s, v) => s + v.total, 0);
     const diferencia = computed(() => (Number(contado.value) || 0) - efectivoEsperado.value);
     const ultimaCerrada = computed(() => [...data.cajas].filter((c) => c.cerradaEn).sort((a, b) => b.cerradaEn.localeCompare(a.cerradaEn))[0]);
     const catDe = (id) => data.categorias.find((c) => c.id === id);
@@ -60,10 +68,18 @@ export function useCajaPage() {
     const unidades = computed(() => carrito.value.reduce((s, i) => s + i.cantidad, 0));
     const falta = computed(() => medio.value === 'Efectivo' ? Math.max(0, total.value - (Number(pagaCon.value) || 0)) : 0);
     const vuelto = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > total.value ? Number(pagaCon.value) - total.value : 0));
+    const faltaCobro = computed(() => medioCobro.value === 'Efectivo' ? Math.max(0, Number(ventaACobrar.value?.total || 0) - (Number(pagaConCobro.value) || 0)) : 0);
+    const vueltoCobro = computed(() => medioCobro.value === 'Efectivo' ? Math.max(0, (Number(pagaConCobro.value) || 0) - Number(ventaACobrar.value?.total || 0)) : 0);
     const movimientos = computed(() => [
-        ...ventasCaja.value.map((v) => ({ id: v.id, fecha: v.fecha, tipo: 'Venta', concepto: `${v.tipo} ${v.numero} · ${v.clienteNombre}`, detalle: v.medioPago, monto: v.total, venta: v })),
+        ...ventasCobradas.value.map((v) => ({ id: v.id, fecha: v.fecha, tipo: 'Venta', concepto: `${v.tipo} ${v.numero} · ${v.clienteNombre}`, detalle: v.medioPago, monto: v.total, venta: v })),
         ...(caja.value?.movimientos ?? []).map((m) => ({ id: m.id, fecha: m.fecha, tipo: m.tipo, concepto: m.concepto, detalle: 'Efectivo', monto: m.monto, venta: undefined })),
     ].sort((a, b) => b.fecha.localeCompare(a.fecha)));
+    let refreshPendientes;
+    onMounted(() => {
+        if (!esEmpleado.value)
+            refreshPendientes = window.setInterval(() => data.cargar(true), 10000);
+    });
+    onUnmounted(() => window.clearInterval(refreshPendientes));
     async function abrir() {
         try {
             await data.abrirCaja(Number(montoInicial.value) || 0);
@@ -115,7 +131,7 @@ export function useCajaPage() {
     async function cobrar() {
         if (!carrito.value.length)
             return;
-        if (medio.value === 'Efectivo' && (pagaCon.value === '' || !Number.isFinite(Number(pagaCon.value)) || Number(pagaCon.value) < total.value))
+        if (!esEmpleado.value && medio.value === 'Efectivo' && (pagaCon.value === '' || !Number.isFinite(Number(pagaCon.value)) || Number(pagaCon.value) < total.value))
             return toast('Ingresá cuánto paga el cliente, igual o mayor al total.', 'error');
         emitiendo.value = true;
         try {
@@ -130,6 +146,26 @@ export function useCajaPage() {
         }
         finally {
             emitiendo.value = false;
+        }
+    }
+    function abrirCobroPendiente(venta) {
+        ventaACobrar.value = venta;
+        medioCobro.value = 'Efectivo';
+        pagaConCobro.value = '';
+    }
+    async function cobrarPendiente() {
+        const venta = ventaACobrar.value;
+        if (!venta)
+            return;
+        if (medioCobro.value === 'Efectivo' && (pagaConCobro.value === '' || Number(pagaConCobro.value) < venta.total))
+            return toast('Ingresá un importe igual o mayor al total de la venta.', 'error');
+        try {
+            await data.cobrarVenta(venta.id, medioCobro.value, medioCobro.value === 'Efectivo' ? Number(pagaConCobro.value) : undefined);
+            toast('Venta cobrada correctamente');
+            ventaACobrar.value = null;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
         }
     }
     async function registrarMov() {
@@ -171,7 +207,8 @@ export function useCajaPage() {
         montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre,
         verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado,
         porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, cliente, unidades, falta,
-        vuelto, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, registrarMov,
+        vuelto, vueltoCobro, faltaCobro, movimientos, esEmpleado, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro,
+        abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov,
         abrirCierre, confirmarCierre, cerrarComprobante, print,
     };
 }

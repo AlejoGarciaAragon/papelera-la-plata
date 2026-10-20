@@ -10,30 +10,30 @@ import ConfirmDialog from '../components/ConfirmDialog.vue';
 import EmptyState from '../components/EmptyState.vue';
 import Field from '../components/Field.vue';
 import StatCard from '../components/StatCard.vue';
-const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar } = useProductosPage();
+const { data, esEmpleado, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar } = useProductosPage();
 </script>
 
 <template>
   <PageHeader :seccion="seccion('/productos')">
-    <template #actions><button class="btn-rojo" @click="nuevo"><Plus class="h-4 w-4" />Nuevo producto</button></template>
+    <template #actions><button v-if="!esEmpleado" class="btn-rojo" @click="nuevo"><Plus class="h-4 w-4" />Nuevo producto</button></template>
   </PageHeader>
 
-  <div class="mb-6 grid gap-4 sm:grid-cols-2">
+  <div v-if="!esEmpleado" class="mb-6 grid gap-4 sm:grid-cols-2">
     <button :class="['rounded-2xl text-left transition', filtro === 'sin' && 'ring-2 ring-rojo-300']" @click="toggle('sin')"><StatCard label="Sin stock" :value="String(sin)" :icon="PackageX" tone="bg-rojo-100 text-rojo-700" hint="Click para filtrar" /></button>
     <button :class="['rounded-2xl text-left transition', filtro === 'bajo' && 'ring-2 ring-amarillo-400']" @click="toggle('bajo')"><StatCard label="Stock bajo" :value="String(bajos)" :icon="AlertTriangle" tone="bg-amarillo-100 text-amarillo-700" hint="Click para filtrar" /></button>
   </div>
 
   <div class="card overflow-hidden">
     <div class="flex flex-wrap items-center gap-3 border-b border-tinta-100 p-4">
-      <SearchInput v-model="q" placeholder="Buscar por nombre o código..." />
-      <select v-model="cat" class="input w-auto">
+      <SearchInput v-model="q" :placeholder="esEmpleado ? 'Buscar precio por nombre o código...' : 'Buscar por nombre o código...'" />
+      <select v-if="!esEmpleado" v-model="cat" class="input w-auto">
         <option value="">Todas las categorías</option>
         <option v-for="c in data.categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
-      <div class="flex rounded-xl bg-tinta-50 p-1 text-sm">
+      <div v-if="!esEmpleado" class="flex rounded-xl bg-tinta-50 p-1 text-sm">
         <button v-for="[k, l] in FILTROS" :key="k" :class="['rounded-lg px-3 py-1.5 font-medium transition', filtro === k ? 'bg-white shadow-card' : 'text-tinta-500']" @click="filtro = k">{{ l }}</button>
       </div>
-      <button :class="['flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition', verOcultos ? 'bg-tinta-200 text-tinta' : 'bg-tinta-50 text-tinta-500 hover:text-tinta']" @click="verOcultos = !verOcultos"><EyeOff class="h-4 w-4" />Ocultos ({{ ocultos }})</button>
+      <button v-if="!esEmpleado" :class="['flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition', verOcultos ? 'bg-tinta-200 text-tinta' : 'bg-tinta-50 text-tinta-500 hover:text-tinta']" @click="verOcultos = !verOcultos"><EyeOff class="h-4 w-4" />Ocultos ({{ ocultos }})</button>
       <span class="ml-auto text-sm text-tinta-500">{{ lista.length }} resultado(s)</span>
     </div>
     <EmptyState v-if="!lista.length" :icon="Package" :title="verOcultos ? 'No hay productos ocultos' : 'No hay productos'" :text="verOcultos ? 'Los productos que ocultes aparecen acá.' : 'Probá con otro filtro o agregá un producto nuevo.'" />
@@ -41,25 +41,25 @@ const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin
       <table class="w-full min-w-[860px]">
         <thead class="bg-tinta-50">
           <tr>
-            <th class="th">Código</th><th class="th">Producto</th><th class="th">Categoría</th>
-            <th class="th text-right">Costo</th><th class="th text-right">Ganancia</th><th class="th text-right">IVA</th><th class="th text-right">Venta</th>
-            <th class="th">Stock</th><th class="th text-right">Acciones</th>
+            <th class="th">Código</th><th class="th">Producto</th><th v-if="!esEmpleado" class="th">Categoría</th>
+            <th v-if="!esEmpleado" class="th text-right">Costo</th><th v-if="!esEmpleado" class="th text-right">Ganancia</th><th class="th text-right">IVA</th><th class="th text-right">Venta</th>
+            <th v-if="!esEmpleado" class="th">Stock</th><th v-if="!esEmpleado" class="th text-right">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-tinta-100">
           <tr v-for="p in lista" :key="p.id" :class="['transition hover:bg-tinta-50/60', p.stock === 0 && 'bg-rojo-50/40']">
             <td class="td font-mono text-xs text-tinta-500">{{ p.codigo }}</td>
             <td class="td font-medium">{{ p.nombre }}</td>
-            <td class="td">
+            <td v-if="!esEmpleado" class="td">
               <span v-if="catDe(p.categoriaId)" class="inline-flex items-center gap-2 text-sm">
                 <span class="h-2.5 w-2.5 rounded-full" :style="{ background: catDe(p.categoriaId)?.color }" />{{ catDe(p.categoriaId)?.nombre }}
               </span>
             </td>
-            <td class="td text-right text-tinta-500">{{ fmtMoney(p.precioCosto) }}</td>
-            <td class="td text-right"><span :class="p.ganancia >= 40 ? 'text-turquesa-700' : 'text-amarillo-700'">{{ p.ganancia }}%</span></td>
+            <td v-if="!esEmpleado" class="td text-right text-tinta-500">{{ fmtMoney(p.precioCosto) }}</td>
+            <td v-if="!esEmpleado" class="td text-right"><span :class="p.ganancia >= 40 ? 'text-turquesa-700' : 'text-amarillo-700'">{{ p.ganancia }}%</span></td>
             <td class="td text-right text-tinta-500">{{ p.iva }}%</td>
             <td class="td text-right font-semibold">{{ fmtMoney(p.precioVenta) }}</td>
-            <td class="td">
+            <td v-if="!esEmpleado" class="td">
               <div class="flex items-center gap-3">
                 <span :class="['inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', stockInfo(p).cls]">{{ stockInfo(p).label }}</span>
                 <div class="hidden h-1.5 w-16 overflow-hidden rounded-full bg-tinta-100 xl:block">
@@ -67,7 +67,7 @@ const { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin
                 </div>
               </div>
             </td>
-            <td class="td whitespace-nowrap text-right">
+            <td v-if="!esEmpleado" class="td whitespace-nowrap text-right">
               <button class="rounded-lg p-2 text-tinta-500 hover:bg-tinta-50 hover:text-tinta disabled:opacity-30" :title="p.oculto ? 'Mostrar' : 'Ocultar'" @click="alternar(p)"><Eye v-if="p.oculto" class="h-4 w-4" /><EyeOff v-else class="h-4 w-4" /></button>
               <button class="rounded-lg p-2 text-tinta-500 hover:bg-tinta-50 hover:text-tinta" title="Editar" @click="form = { ...p }"><Pencil class="h-4 w-4" /></button>
               <button class="rounded-lg p-2 text-tinta-500 hover:bg-rojo-50 hover:text-rojo-700" title="Eliminar" @click="borrar = p"><Trash2 class="h-4 w-4" /></button>

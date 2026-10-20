@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { useDataStore } from '../stores/data';
+import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
 import { precioVentaDe } from '../lib/format';
 import { apiErrorMessage } from '../lib/apiError';
@@ -7,7 +8,9 @@ export const FILTROS = [['todos', 'Todos'], ['bajo', 'Stock bajo'], ['sin', 'Sin
 export const IVAS = [21, 11, 0];
 export function useProductosPage() {
     const data = useDataStore();
+    const auth = useAuthStore();
     const { push: toast } = useToastStore();
+    const esEmpleado = computed(() => auth.user?.rol === 'Empleado');
     const q = ref('');
     const cat = ref('');
     const filtro = ref('todos');
@@ -76,5 +79,5 @@ export function useProductosPage() {
             toast(apiErrorMessage(error), 'error');
         }
     }
-    return { data, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar, toast };
+    return { data, esEmpleado, q, cat, filtro, verOcultos, form, borrar, catDe, lista, bajos, sin, ocultos, precioForm, barra, toggle, nuevo, alternar, guardar, confirmarBorrar, toast };
 }

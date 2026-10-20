@@ -8,8 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from core.models import Caja, Categoria, Cliente, DetallePedido, DetalleVenta, Inventario, MovimientoCaja, Producto, Venta
 from .serializers import (
-    CajaSerializer, CategoriaSerializer, ClienteSerializer, MovimientoCajaSerializer,
-    ProductoCreateSerializer, ProductoUpdateSerializer, VentaCreateSerializer, VentaSerializer
+    CajaEmpleadoSerializer, CajaSerializer, CategoriaSerializer, ClienteSerializer, MovimientoCajaSerializer,
+    ProductoConsultaSerializer, ProductoCreateSerializer, ProductoUpdateSerializer,
+    VentaCreateSerializer, VentaPaymentSerializer, VentaSerializer
 )
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
@@ -40,6 +41,12 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['nombre', 'descripcion']
     filterset_fields = ['activo']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.groups.filter(name='Empleado').exists() and not self.request.user.groups.filter(name='Dueno').exists():
+            queryset = queryset.filter(activo=True)
+        return queryset
 
     def destroy(self, request, *args, **kwargs):
         categoria = self.get_object()
@@ -86,9 +93,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
     search_fields = ['nombre', 'codigo_barra', 'descripcion']
 
     def get_queryset(self):
-        return Producto.objects.select_related('categoria').prefetch_related('inventario').all()
+        queryset = Producto.objects.select_related('categoria').prefetch_related('inventario')
+        if self.request.user.groups.filter(name='Empleado').exists() and not self.request.user.groups.filter(name='Dueno').exists():
+            queryset = queryset.filter(activo=True)
+        return queryset
 
     def get_serializer_class(self):
+        if self.request.user.groups.filter(name='Empleado').exists() and not self.request.user.groups.filter(name='Dueno').exists():
+            return ProductoConsultaSerializer
         # Usar ProductoCreateSerializer para POST, y Update para PUT/PATCH
         if self.action in ['create', 'update', 'partial_update']:
             # Si es creación, usa el que tiene stock_inicial
@@ -125,6 +137,11 @@ class CajaViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, RolAccessPermission]
     serializer_class = CajaSerializer
     queryset = Caja.objects.select_related('usuario').prefetch_related('movimientos', 'ventas__detalles__producto').all()
+
+    def get_serializer_class(self):
+        if self.request.user.groups.filter(name='Empleado').exists() and not self.request.user.groups.filter(name='Dueno').exists():
+            return CajaEmpleadoSerializer
+        return CajaSerializer
 
     @action(detail=False, methods=['get'])
     def actual(self, request):
@@ -177,6 +194,8 @@ class CajaViewSet(viewsets.ReadOnlyModelViewSet):
             caja = Caja.objects.select_for_update().get(pk=pk)
             if caja.cerrada_en:
                 raise ValidationError({'caja': 'La caja ya está cerrada.'})
+            if caja.ventas.filter(estado=Venta.ESTADO_PENDIENTE).exists():
+                raise ValidationError({'caja': 'No se puede cerrar la caja mientras haya ventas pendientes de cobro.'})
             caja.cerrada_en = timezone.now()
             caja.monto_cierre = monto
             caja.save(update_fields=['cerrada_en', 'monto_cierre'])
@@ -221,6 +240,12 @@ class VentaViewSet(viewsets.ModelViewSet):
         serializer = VentaCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         values = serializer.validated_data
+        es_dueno = request.user.groups.filter(name='Dueno').exists()
+        if es_dueno and 'metodo_pago' not in values:
+            raise ValidationError({'medioPago': 'Seleccioná el medio de pago.'})
+        if es_dueno and values.get('metodo_pago') == Venta.METODO_PAGO_PENDIENTE:
+            raise ValidationError({'medioPago': 'Seleccioná un medio de pago válido.'})
+        metodo_pago = values.get('metodo_pago') if es_dueno else Venta.METODO_PAGO_PENDIENTE
         items = values['items']
 
         productos_ids = [item['producto'].id for item in items]
@@ -256,10 +281,10 @@ class VentaViewSet(viewsets.ModelViewSet):
                 total += producto.precio_venta * cantidad
             venta = Venta.objects.create(
                 total=total,
-                metodo_pago=values['metodo_pago'],
+                metodo_pago=metodo_pago,
                 tipo_comprobante=values['tipo'],
-                cliente=values.get('cliente'),
-                estado=Venta.ESTADO_COMPLETADA,
+                cliente=values.get('cliente') if es_dueno else None,
+                estado=Venta.ESTADO_COMPLETADA if es_dueno else Venta.ESTADO_PENDIENTE,
                 estado_arca='No aplica' if values['tipo'] == Venta.TIPO_FACTURA_X else 'Pendiente',
                 vendedor=request.user,
                 caja=caja,
@@ -279,6 +304,28 @@ class VentaViewSet(viewsets.ModelViewSet):
                 )
 
         return Response(self.get_serializer(venta).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cobrar(self, request, pk=None):
+        serializer = VentaPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            venta = Venta.objects.select_for_update().get(pk=pk)
+            if venta.estado != Venta.ESTADO_PENDIENTE:
+                raise ValidationError({'venta': 'La venta ya no está pendiente de cobro.'})
+            if not venta.caja_id:
+                raise ValidationError({'caja': 'Se necesita una caja abierta para cobrar esta venta.'})
+            caja = Caja.objects.select_for_update().get(pk=venta.caja_id)
+            if caja.cerrada_en:
+                raise ValidationError({'caja': 'Se necesita una caja abierta para cobrar esta venta.'})
+            metodo_pago = serializer.validated_data['metodo_pago']
+            paga_con = serializer.validated_data.get('pagaCon')
+            if metodo_pago == Venta.METODO_PAGO_EFECTIVO and (paga_con is None or paga_con < venta.total):
+                raise ValidationError({'pagaCon': 'Ingresá un importe igual o mayor al total de la venta.'})
+            venta.metodo_pago = metodo_pago
+            venta.estado = Venta.ESTADO_COMPLETADA
+            venta.save(update_fields=['metodo_pago', 'estado'])
+        return Response(self.get_serializer(venta).data)
 
     @action(detail=False, methods=['get'])
     def resumen_diario(self, request):

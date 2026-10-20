@@ -11,11 +11,11 @@ const router = createRouter({
             component: AppLayout,
             children: [
                 { path: '', redirect: '/caja' },
-                { path: 'caja', component: () => import('./pages/CajaPage.vue') },
-                { path: 'productos', component: () => import('./pages/ProductosPage.vue') },
-                { path: 'categorias', component: () => import('./pages/CategoriasPage.vue') },
-                { path: 'clientes', component: () => import('./pages/ClientesPage.vue') },
-                { path: 'facturacion', component: () => import('./pages/FacturacionPage.vue') },
+                { path: 'caja', component: () => import('./pages/CajaPage.vue'), meta: { roles: ['Dueno', 'Empleado'] } },
+                { path: 'productos', component: () => import('./pages/ProductosPage.vue'), meta: { roles: ['Dueno', 'Empleado'] } },
+                { path: 'categorias', component: () => import('./pages/CategoriasPage.vue'), meta: { roles: ['Dueno'] } },
+                { path: 'clientes', component: () => import('./pages/ClientesPage.vue'), meta: { roles: ['Dueno'] } },
+                { path: 'facturacion', component: () => import('./pages/FacturacionPage.vue'), meta: { roles: ['Dueno'] } },
             ],
         },
         { path: '/:pathMatch(.*)*', redirect: '/caja' },
@@ -27,7 +27,10 @@ router.beforeEach(async (to) => {
         return '/login';
     if (to.path === '/login' && auth.user)
         return '/caja';
-    if (!to.meta.publica)
+    if (!to.meta.publica) {
+        if (to.meta.roles && !to.meta.roles.includes(auth.user?.rol))
+            return '/caja';
         await useDataStore().cargar();
+    }
 });
 export default router;

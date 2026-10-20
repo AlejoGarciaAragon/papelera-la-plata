@@ -132,6 +132,22 @@ ProductoCreateSerializer = ProductoSerializer
 ProductoUpdateSerializer = ProductoSerializer
 
 
+class ProductoConsultaSerializer(serializers.ModelSerializer):
+    codigo = serializers.CharField(source='codigo_barra', read_only=True)
+    categoriaId = serializers.IntegerField(source='categoria_id', read_only=True, allow_null=True)
+    categoriaNombre = serializers.CharField(source='categoria.nombre', read_only=True, allow_null=True)
+    precioVenta = serializers.DecimalField(source='precio_venta', max_digits=12, decimal_places=2, read_only=True)
+    stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Producto
+        fields = ['id', 'codigo', 'nombre', 'categoriaId', 'categoriaNombre', 'precioVenta', 'stock', 'iva']
+
+    def get_stock(self, obj):
+        inventario = getattr(obj, 'inventario', None)
+        return inventario.stock_fisico if inventario else 0
+
+
 class VentaItemInputSerializer(serializers.Serializer):
     productoId = serializers.PrimaryKeyRelatedField(source='producto', queryset=Producto.objects.filter(activo=True))
     cantidad = serializers.IntegerField(min_value=1)
@@ -140,8 +156,23 @@ class VentaItemInputSerializer(serializers.Serializer):
 class VentaCreateSerializer(serializers.Serializer):
     clienteId = serializers.PrimaryKeyRelatedField(source='cliente', queryset=Cliente.objects.filter(activo=True), allow_null=True, required=False)
     tipo = serializers.ChoiceField(choices=Venta.TIPOS_COMPROBANTE)
-    medioPago = MedioPagoField(source='metodo_pago')
+    medioPago = MedioPagoField(source='metodo_pago', required=False)
     items = VentaItemInputSerializer(many=True, allow_empty=False)
+
+    def validate_medioPago(self, value):
+        if value == Venta.METODO_PAGO_PENDIENTE:
+            raise serializers.ValidationError('Seleccioná un medio de pago válido.')
+        return value
+
+
+class VentaPaymentSerializer(serializers.Serializer):
+    medioPago = MedioPagoField(source='metodo_pago')
+    pagaCon = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0'), required=False)
+
+    def validate(self, attrs):
+        if attrs['metodo_pago'] == Venta.METODO_PAGO_PENDIENTE:
+            raise serializers.ValidationError({'medioPago': 'Seleccioná un medio de pago válido.'})
+        return attrs
 
 
 class VentaSerializer(serializers.ModelSerializer):
@@ -158,10 +189,12 @@ class VentaSerializer(serializers.ModelSerializer):
     caeVto = serializers.DateField(source='cae_vto', read_only=True, allow_null=True)
     estadoARCA = serializers.CharField(source='estado_arca', read_only=True)
     cajaId = serializers.IntegerField(source='caja_id', read_only=True, allow_null=True)
+    estado = serializers.CharField(read_only=True)
+    vendedor = serializers.CharField(source='vendedor.username', read_only=True)
 
     class Meta:
         model = Venta
-        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId']
+        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId', 'estado', 'vendedor']
 
     def get_numero(self, obj):
         return f'0001-{obj.pk:08d}'
@@ -205,3 +238,13 @@ class CajaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Caja
         fields = ['id', 'fechaOperativa', 'abiertaEn', 'cerradaEn', 'montoInicial', 'montoCierre', 'usuario', 'movimientos']
+
+
+class CajaEmpleadoSerializer(serializers.ModelSerializer):
+    abiertaEn = serializers.DateTimeField(source='abierta_en', read_only=True)
+    usuario = serializers.CharField(source='usuario.username', read_only=True)
+    montoInicial = serializers.DecimalField(source='monto_inicial', max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Caja
+        fields = ['id', 'abiertaEn', 'usuario', 'montoInicial']

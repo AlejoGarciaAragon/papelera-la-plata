@@ -1,5 +1,5 @@
 <script setup>import { useCajaPage } from '../composables/useCajaPage';
-const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
+const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, esEmpleado, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, faltaCobro, vueltoCobro, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
 </script>
 
 <template>
@@ -39,15 +39,31 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
         </span>
       </template>
       <template #actions>
-        <button class="btn-ghost" @click="verMovs = true">
+        <button v-if="!esEmpleado" class="btn-ghost" @click="verMovs = true">
           <History class="h-4 w-4 text-tinta-500" />Movimientos
           <span class="rounded-full bg-tinta-50 px-2 text-xs text-tinta-500">{{ movimientos.length }}</span>
         </button>
-        <button class="btn-ghost" @click="mov = 'Ingreso'"><ArrowDownCircle class="h-4 w-4 text-turquesa-600" />Ingreso</button>
-        <button class="btn-ghost" @click="mov = 'Egreso'"><ArrowUpCircle class="h-4 w-4 text-rojo-500" />Egreso</button>
-        <button class="btn-ghost text-rojo-700" @click="abrirCierre"><Lock class="h-4 w-4" />Cerrar caja</button>
+        <button v-if="!esEmpleado" class="btn-ghost" @click="mov = 'Ingreso'"><ArrowDownCircle class="h-4 w-4 text-turquesa-600" />Ingreso</button>
+        <button v-if="!esEmpleado" class="btn-ghost" @click="mov = 'Egreso'"><ArrowUpCircle class="h-4 w-4 text-rojo-500" />Egreso</button>
+        <button v-if="!esEmpleado" class="btn-ghost text-rojo-700" @click="abrirCierre"><Lock class="h-4 w-4" />Cerrar caja</button>
       </template>
     </PageHeader>
+
+    <section v-if="!esEmpleado && ventasPendientes.length" class="card mb-6 overflow-hidden">
+      <div class="border-b border-tinta-100 p-4">
+        <h3 class="text-lg font-semibold">Ventas pendientes de cobro</h3>
+      </div>
+      <ul class="divide-y divide-tinta-100">
+        <li v-for="venta in ventasPendientes" :key="venta.id" class="flex flex-wrap items-center gap-3 p-4">
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold">{{ venta.numero }} · {{ venta.clienteNombre }}</p>
+            <p class="text-sm text-tinta-500">{{ venta.vendedor }} · {{ fmtTime(venta.fecha) }} · {{ venta.items.map((item) => `${item.cantidad} × ${item.nombre}`).join(', ') }}</p>
+          </div>
+          <b>{{ fmtMoney(venta.total) }}</b>
+          <button class="btn-turquesa" @click="abrirCobroPendiente(venta)"><CheckCircle2 class="h-4 w-4" />Cobrar</button>
+        </li>
+      </ul>
+    </section>
 
     <div class="grid gap-6 xl:grid-cols-[1fr_440px]">
       <!-- Productos -->
@@ -87,14 +103,14 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
       <!-- Cobro -->
       <section class="card flex flex-col overflow-hidden xl:sticky xl:top-20 xl:h-[calc(100vh-11rem)]">
         <div class="flex items-center gap-2 border-b border-tinta-100 p-3">
-          <div class="relative min-w-0 flex-1">
+          <div v-if="!esEmpleado" class="relative min-w-0 flex-1">
             <User class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta-300" />
             <select class="input py-2 pl-9" title="Cliente" :value="clienteId" @change="elegirCliente($event.target.value)">
               <option value="">Consumidor Final</option>
               <option v-for="c in data.clientes.filter((x) => !x.oculto || x.id === clienteId)" :key="c.id" :value="c.id">{{ c.razonSocial }}</option>
             </select>
           </div>
-          <select v-model="tipo" title="Comprobante" :class="['input w-auto border-transparent py-2 font-semibold', tipoBadge(tipo)]">
+          <select v-if="!esEmpleado" v-model="tipo" title="Comprobante" :class="['input w-auto border-transparent py-2 font-semibold', tipoBadge(tipo)]">
             <option>Factura A</option><option>Factura B</option><option>Factura C</option><option>Factura X</option>
           </select>
         </div>
@@ -131,7 +147,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
             <p class="font-display text-4xl font-bold leading-none">{{ fmtMoney(total) }}</p>
           </div>
 
-          <div>
+          <div v-if="!esEmpleado">
                         <div class="grid grid-cols-5 gap-1.5">
               <button v-for="m in MEDIOS" :key="m.id" :title="m.id"
                 :class="['flex flex-col items-center gap-0.5 rounded-xl border-2 px-1 py-1.5 text-[11px] font-semibold leading-tight transition', medio === m.id ? 'border-turquesa-500 bg-turquesa-50 text-tinta' : 'border-tinta-100 bg-white text-tinta-500 hover:text-tinta']"
@@ -141,7 +157,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
             </div>
           </div>
 
-          <div v-if="medio === 'Efectivo' && carrito.length" class="grid grid-cols-2 gap-2">
+          <div v-if="!esEmpleado && medio === 'Efectivo' && carrito.length" class="grid grid-cols-2 gap-2">
             <label class="relative">
               <span class="absolute left-3.5 top-1.5 text-[10px] font-semibold uppercase tracking-wider text-tinta-300">Paga con</span>
               <input v-model.number="pagaCon" class="input pb-1.5 pt-5 text-base font-semibold" type="number" min="0.01" step="0.01" required placeholder="$ 0" />
@@ -152,9 +168,9 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
             </div>
           </div>
 
-          <button class="btn-turquesa w-full py-3 text-lg" :disabled="!carrito.length || emitiendo || falta > 0" @click="cobrar">
+          <button class="btn-turquesa w-full py-3 text-lg" :disabled="!carrito.length || emitiendo || (!esEmpleado && falta > 0)" @click="cobrar">
             <template v-if="emitiendo"><span class="h-5 w-5 animate-spin rounded-full border-2 border-tinta border-t-transparent" />Guardando venta...</template>
-            <template v-else><CheckCircle2 class="h-5 w-5" />{{ carrito.length ? `Cobrar ${fmtMoney(total)}` : 'Cobrar' }}</template>
+            <template v-else><CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Enviar al dueño' : carrito.length ? `Cobrar ${fmtMoney(total)}` : 'Cobrar' }}</template>
           </button>
         </div>
       </section>
@@ -224,13 +240,35 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
         <button class="btn-rojo" @click="confirmarCierre"><Lock class="h-4 w-4" />Confirmar cierre</button>
       </template>
     </Modal>
+
+    <Modal :open="!!ventaACobrar" :title="ventaACobrar ? `Cobrar ${ventaACobrar.numero}` : ''" size="md" accent="bg-turquesa-400" @close="ventaACobrar = null">
+      <div v-if="ventaACobrar" class="space-y-4">
+        <div>
+          <p class="text-sm text-tinta-500">{{ ventaACobrar.vendedor }} · {{ ventaACobrar.clienteNombre }}</p>
+          <p class="mt-2 font-display text-3xl font-bold">{{ fmtMoney(ventaACobrar.total) }}</p>
+        </div>
+        <div class="grid grid-cols-5 gap-1.5">
+          <button v-for="m in MEDIOS" :key="m.id" :class="['flex flex-col items-center gap-1 rounded-xl border-2 px-1 py-2 text-[11px] font-semibold', medioCobro === m.id ? 'border-turquesa-500 bg-turquesa-50' : 'border-tinta-100']" @click="medioCobro = m.id">
+            <component :is="m.icon" class="h-4 w-4" />{{ m.id }}
+          </button>
+        </div>
+        <template v-if="medioCobro === 'Efectivo'">
+          <Field label="Paga con"><input v-model.number="pagaConCobro" class="input" type="number" min="0.01" step="0.01" /></Field>
+          <p :class="['text-sm font-semibold', faltaCobro ? 'text-rojo-600' : 'text-turquesa-700']">{{ faltaCobro ? `Falta ${fmtMoney(faltaCobro)}` : `Vuelto ${fmtMoney(vueltoCobro)}` }}</p>
+        </template>
+      </div>
+      <template #footer>
+        <button class="btn-ghost" @click="ventaACobrar = null">Cancelar</button>
+        <button class="btn-turquesa" :disabled="medioCobro === 'Efectivo' && faltaCobro > 0" @click="cobrarPendiente"><CheckCircle2 class="h-4 w-4" />Confirmar cobro</button>
+      </template>
+    </Modal>
   </template>
 
   <!-- Comprobante emitido -->
-  <Modal :open="!!emitida" title="Comprobante emitido" size="lg" @close="cerrarComprobante">
+  <Modal :open="!!emitida" :title="esEmpleado ? 'Venta enviada al dueño' : 'Comprobante emitido'" size="lg" @close="cerrarComprobante">
     <template v-if="emitida">
-      <div class="mb-4 flex items-center gap-3 rounded-xl bg-turquesa-50 px-4 py-3 text-sm text-turquesa-800">
-        <CheckCircle2 class="h-5 w-5" /> Venta guardada · Autorización ARCA pendiente
+      <div :class="['mb-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm', esEmpleado ? 'bg-amarillo-50 text-amarillo-800' : 'bg-turquesa-50 text-turquesa-800']">
+        <CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Venta registrada · Pendiente de cobro por el dueño' : 'Venta guardada · Autorización ARCA pendiente' }}
       </div>
       <Comprobante :venta="emitida" />
     </template>

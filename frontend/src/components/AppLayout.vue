@@ -1,4 +1,4 @@
-<script setup>import { onMounted, onUnmounted, ref, watch } from 'vue';
+<script setup>import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { LogOut, Menu, X, CircleDot, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next';
 import { SECCIONES } from '../lib/sections';
@@ -12,6 +12,9 @@ const data = useDataStore();
 const toast = useToastStore();
 const route = useRoute();
 const router = useRouter();
+const seccionesVisibles = computed(() => auth.user?.rol === 'Empleado'
+  ? SECCIONES.filter((seccion) => ['/caja', '/productos'].includes(seccion.path))
+  : SECCIONES);
 const open = ref(false);
 const colapsado = ref(localStorage.getItem(SIDEBAR_KEY) === '1');
 watch(colapsado, (v) => localStorage.setItem(SIDEBAR_KEY, v ? '1' : '0'));
@@ -59,7 +62,7 @@ const salir = () => {
       </div>
       <p :class="['px-6 pb-2 text-[11px] font-semibold uppercase tracking-widest text-tinta-300', colapsado && 'lg:hidden']">Menú</p>
       <nav class="flex flex-1 flex-col gap-1 px-3">
-        <RouterLink v-for="s in SECCIONES" :key="s.path" :to="s.path" custom v-slot="{ navigate, isActive, href }">
+        <RouterLink v-for="s in seccionesVisibles" :key="s.path" :to="s.path" custom v-slot="{ navigate, isActive, href }">
           <a
             :href="href"
             :title="s.label"
