@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from rest_framework import serializers
@@ -68,12 +68,18 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class ClienteSerializer(serializers.ModelSerializer):
     razonSocial = serializers.CharField(source='nombre_o_razon_social')
     documento = serializers.CharField(source='numero_documento')
+    tipoDocumento = serializers.ChoiceField(
+        source='tipo_documento',
+        choices=Cliente.TIPOS_DOCUMENTO,
+        required=False,
+        default=Cliente.TIPO_DOCUMENTO_DNI,
+    )
     condicionIVA = CondicionIVAField(source='condicion_iva')
     oculto = OcultoField(source='activo', required=False, default=True)
 
     class Meta:
         model = Cliente
-        fields = ['id', 'razonSocial', 'documento', 'condicionIVA', 'direccion', 'telefono', 'email', 'oculto']
+        fields = ['id', 'razonSocial', 'tipoDocumento', 'documento', 'condicionIVA', 'direccion', 'telefono', 'email', 'oculto']
         read_only_fields = ['id']
 
 
@@ -159,21 +165,17 @@ class VentaItemInputSerializer(serializers.Serializer):
 
 
 class VentaCreateSerializer(serializers.Serializer):
-    clienteId = serializers.PrimaryKeyRelatedField(source='cliente', queryset=Cliente.objects.filter(activo=True), allow_null=True, required=False)
-    tipo = serializers.ChoiceField(choices=Venta.TIPOS_COMPROBANTE)
-    medioPago = MedioPagoField(source='metodo_pago', required=False)
     items = VentaItemInputSerializer(many=True, allow_empty=False)
-
-    def validate_medioPago(self, value):
-        if value == Venta.METODO_PAGO_PENDIENTE:
-            raise serializers.ValidationError('Seleccioná un medio de pago válido.')
-        return value
-
 
 class VentaPaymentSerializer(serializers.Serializer):
     medioPago = MedioPagoField(source='metodo_pago')
     pagaCon = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0'), required=False)
     clienteId = serializers.PrimaryKeyRelatedField(source='cliente', queryset=Cliente.objects.filter(activo=True), allow_null=True, required=False)
+    tipo = serializers.ChoiceField(choices=[
+        (Venta.TIPO_FACTURA_A, Venta.TIPO_FACTURA_A),
+        (Venta.TIPO_FACTURA_B, Venta.TIPO_FACTURA_B),
+        (Venta.TIPO_FACTURA_C, Venta.TIPO_FACTURA_C),
+    ])
 
     def validate(self, attrs):
         if attrs['metodo_pago'] == Venta.METODO_PAGO_PENDIENTE:
@@ -192,7 +194,8 @@ class VentaSerializer(serializers.ModelSerializer):
     subtotal = serializers.SerializerMethodField()
     ivaTotal = serializers.SerializerMethodField()
     cae = serializers.CharField(read_only=True)
-    caeVto = serializers.DateField(source='cae_vto', read_only=True, allow_null=True)
+    nroComprobante = serializers.CharField(source='nro_comprobante', read_only=True)
+    caeVto = serializers.DateField(source='vencimiento_cae', read_only=True, allow_null=True)
     estadoARCA = serializers.CharField(source='estado_arca', read_only=True)
     cajaId = serializers.IntegerField(source='caja_id', read_only=True, allow_null=True)
     estado = serializers.CharField(read_only=True)
@@ -201,13 +204,17 @@ class VentaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Venta
-        fields = ['id', 'numero', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId', 'estado', 'vendedor', 'vendedorNombre']
+        fields = ['id', 'numero', 'nroComprobante', 'fecha', 'clienteId', 'clienteNombre', 'tipo', 'medioPago', 'items', 'subtotal', 'ivaTotal', 'total', 'cae', 'caeVto', 'estadoARCA', 'cajaId', 'estado', 'vendedor', 'vendedorNombre']
 
     def get_numero(self, obj):
-        return f'0001-{obj.pk:08d}'
+        return obj.nro_comprobante or f'PENDIENTE-{obj.pk:08d}'
 
     def get_clienteNombre(self, obj):
-        return obj.cliente.nombre_o_razon_social if obj.cliente_id else 'Consumidor Final'
+        if obj.cliente_id:
+            return obj.cliente.nombre_o_razon_social
+        if obj.estado == Venta.ESTADO_PENDIENTE_COBRO:
+            return 'Cliente por asignar'
+        return 'Consumidor Final'
 
     def get_vendedorNombre(self, obj):
         return obj.vendedor.get_full_name().strip() or obj.vendedor.username
@@ -222,8 +229,11 @@ class VentaSerializer(serializers.ModelSerializer):
         } for detalle in obj.detalles.all()]
 
     def get_subtotal(self, obj):
-        subtotal = sum((detalle.subtotal / (Decimal('1') + Decimal(detalle.iva_porcentaje) / Decimal('100')) for detalle in obj.detalles.all()), Decimal('0'))
-        return subtotal.quantize(Decimal('0.01'))
+        return sum((
+            (detalle.subtotal / (Decimal('1') + Decimal(detalle.iva_porcentaje) / Decimal('100')))
+            .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            for detalle in obj.detalles.all()
+        ), Decimal('0.00'))
 
     def get_ivaTotal(self, obj):
         return obj.total - self.get_subtotal(obj)

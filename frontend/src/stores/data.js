@@ -144,12 +144,8 @@ export const useDataStore = defineStore('data', () => {
 
     async function registrarVenta(venta) {
         const payload = {
-            clienteId: venta.cliente?.id ?? null,
-            tipo: venta.tipo,
             items: venta.items.map((item) => ({ productoId: item.productoId, cantidad: item.cantidad })),
         };
-        if (auth.user?.rol !== 'Empleado')
-            payload.medioPago = venta.medioPago;
         const { data } = await api.post('ventas/', payload);
         const ventaCreada = normalizeVenta(data);
         upsert(ventas.value, ventaCreada);
@@ -157,21 +153,27 @@ export const useDataStore = defineStore('data', () => {
         return ventaCreada;
     }
 
-    async function cobrarVenta(id, medioPago, pagaCon, clienteId) {
-        const payload = { medioPago };
+    async function cobrarVenta(id, medioPago, pagaCon, clienteId, tipo) {
+        const payload = { medioPago, tipo };
         if (pagaCon !== undefined)
             payload.pagaCon = pagaCon;
         payload.clienteId = clienteId || null;
-        const { data } = await api.post(`ventas/${id}/cobrar/`, payload);
+        const { data } = await api.post(`ventas/${id}/cobrar_y_facturar/`, payload);
         const ventaCobrada = normalizeVenta(data);
         upsert(ventas.value, ventaCobrada);
         await cargar(true);
         return ventaCobrada;
     }
 
+    async function tipoComprobanteSugerido(clienteId) {
+        const params = clienteId ? { clienteId } : {};
+        const { data } = await api.get('ventas/tipo-comprobante-sugerido/', { params });
+        return data.tipo;
+    }
+
     return {
         categorias, productos, clientes, ventas, cajas, cajaAbierta, loading, loaded, error, cargar,
         guardarCategoria, eliminarCategoria, guardarProducto, eliminarProducto, guardarCliente, eliminarCliente, alternarOculto,
-        abrirCaja, cerrarCaja, agregarMovimiento, registrarVenta, cobrarVenta,
+        abrirCaja, cerrarCaja, agregarMovimiento, registrarVenta, cobrarVenta, tipoComprobanteSugerido,
     };
 });

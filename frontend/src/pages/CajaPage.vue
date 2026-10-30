@@ -1,5 +1,5 @@
 <script setup>import { useCajaPage } from '../composables/useCajaPage';
-const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId, esEmpleado, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, unidades, falta, vuelto, faltaCobro, vueltoCobro, movimientos, abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
+const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, MEDIOS, PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge, montoInicial, q, cat, carrito, emitida, emitiendo, mov, movForm, cierre, verMovs, contado, buscador, caja, ventasCaja, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId, tipoCobro, esEmpleado, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado, porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, unidades, faltaCobro, vueltoCobro, movimientos, abrir, agregar, cambiarCant, quitar, escanear, cobrar, abrirCobroPendiente, actualizarTipoComprobante, cobrarPendiente, registrarMov, abrirCierre, confirmarCierre, cerrarComprobante, print, } = useCajaPage();
 </script>
 
 <template>
@@ -102,19 +102,6 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
 
       <!-- Cobro -->
       <section class="card flex flex-col overflow-hidden xl:sticky xl:top-20 xl:h-[calc(100vh-11rem)]">
-        <div class="flex items-center gap-2 border-b border-tinta-100 p-3">
-          <div v-if="!esEmpleado" class="relative min-w-0 flex-1">
-            <User class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tinta-300" />
-            <select class="input py-2 pl-9" title="Cliente" :value="clienteId" @change="elegirCliente($event.target.value)">
-              <option value="">Consumidor Final</option>
-              <option v-for="c in data.clientes.filter((x) => !x.oculto || x.id === clienteId)" :key="c.id" :value="c.id">{{ c.razonSocial }}</option>
-            </select>
-          </div>
-          <select v-if="!esEmpleado" v-model="tipo" title="Comprobante" :class="['input w-auto border-transparent py-2 font-semibold', tipoBadge(tipo)]">
-            <option>Factura A</option><option>Factura B</option><option>Factura C</option><option>Factura X</option>
-          </select>
-        </div>
-
         <div class="flex items-center justify-between px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-tinta-300">
           <span>{{ unidades }} {{ unidades === 1 ? 'artículo' : 'artículos' }}</span>
           <button v-if="carrito.length" class="normal-case tracking-normal text-tinta-500 hover:text-rojo-600" @click="carrito = []">Vaciar</button>
@@ -141,36 +128,15 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
         <div class="space-y-2.5 border-t border-tinta-100 p-3">
           <div class="flex items-center justify-between gap-3 rounded-2xl bg-turquesa-100 px-4 py-2.5">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wider text-turquesa-800">Total a cobrar</p>
-              <p class="text-[11px] text-tinta-500">Neto {{ fmtMoney(neto) }} · IVA {{ fmtMoney(total - neto) }}</p>
+              <p class="text-xs font-semibold uppercase tracking-wider text-turquesa-800">Total del pedido</p>
+              <p class="text-[11px] text-tinta-500">El cobro y la factura se confirman después desde Caja Centralizada.</p>
             </div>
             <p class="font-display text-4xl font-bold leading-none">{{ fmtMoney(total) }}</p>
           </div>
 
-          <div v-if="!esEmpleado">
-                        <div class="grid grid-cols-5 gap-1.5">
-              <button v-for="m in MEDIOS" :key="m.id" :title="m.id"
-                :class="['flex flex-col items-center gap-0.5 rounded-xl border-2 px-1 py-1.5 text-[11px] font-semibold leading-tight transition', medio === m.id ? 'border-turquesa-500 bg-turquesa-50 text-tinta' : 'border-tinta-100 bg-white text-tinta-500 hover:text-tinta']"
-                @click="medio = m.id">
-                <component :is="m.icon" class="h-4 w-4" />{{ m.id }}
-              </button>
-            </div>
-          </div>
-
-          <div v-if="!esEmpleado && medio === 'Efectivo' && carrito.length" class="grid grid-cols-2 gap-2">
-            <label class="relative">
-              <span class="absolute left-3.5 top-1.5 text-[10px] font-semibold uppercase tracking-wider text-tinta-300">Paga con</span>
-              <input v-model.number="pagaCon" class="input pb-1.5 pt-5 text-base font-semibold" type="number" min="0.01" step="0.01" required placeholder="$ 0" />
-            </label>
-            <div :class="['rounded-xl px-3.5 py-1.5', falta > 0 ? 'bg-rojo-50' : vuelto > 0 ? 'bg-amarillo-100' : 'bg-tinta-50']">
-              <p class="text-[10px] font-semibold uppercase tracking-wider text-tinta-500">{{ falta > 0 ? 'Falta' : 'Vuelto' }}</p>
-              <p :class="['font-display text-xl font-bold', falta > 0 && 'text-rojo-700']">{{ fmtMoney(falta > 0 ? falta : vuelto) }}</p>
-            </div>
-          </div>
-
-          <button class="btn-turquesa w-full py-3 text-lg" :disabled="!carrito.length || emitiendo || (!esEmpleado && falta > 0)" @click="cobrar">
-            <template v-if="emitiendo"><span class="h-5 w-5 animate-spin rounded-full border-2 border-tinta border-t-transparent" />Guardando venta...</template>
-            <template v-else><CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Enviar al dueño' : carrito.length ? `Cobrar ${fmtMoney(total)}` : 'Cobrar' }}</template>
+          <button class="btn-turquesa w-full py-3 text-lg" :disabled="!carrito.length || emitiendo" @click="cobrar">
+            <template v-if="emitiendo"><span class="h-5 w-5 animate-spin rounded-full border-2 border-tinta border-t-transparent" />Registrando pedido...</template>
+            <template v-else><CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Enviar al dueño' : 'Registrar y continuar al cobro' }}</template>
           </button>
         </div>
       </section>
@@ -248,9 +214,14 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
           <p class="mt-2 font-display text-3xl font-bold">{{ fmtMoney(ventaACobrar.total) }}</p>
         </div>
         <Field label="Cliente">
-          <select v-model="clienteCobroId" class="input">
+          <select v-model="clienteCobroId" class="input" @change="actualizarTipoComprobante">
             <option value="">Consumidor Final</option>
             <option v-for="cliente in data.clientes.filter((item) => !item.oculto || item.id === clienteCobroId)" :key="cliente.id" :value="cliente.id">{{ cliente.razonSocial }}</option>
+          </select>
+        </Field>
+        <Field label="Tipo de comprobante">
+          <select v-model="tipoCobro" :class="['input', tipoBadge(tipoCobro)]">
+            <option>Factura A</option><option>Factura B</option><option>Factura C</option>
           </select>
         </Field>
         <div class="grid grid-cols-5 gap-1.5">
@@ -265,7 +236,10 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
       </div>
       <template #footer>
         <button class="btn-ghost" @click="ventaACobrar = null">Cancelar</button>
-        <button class="btn-turquesa" :disabled="medioCobro === 'Efectivo' && faltaCobro > 0" @click="cobrarPendiente"><CheckCircle2 class="h-4 w-4" />Confirmar cobro</button>
+        <button class="btn-turquesa" :disabled="emitiendo || (medioCobro === 'Efectivo' && faltaCobro > 0)" @click="cobrarPendiente">
+          <span v-if="emitiendo" class="h-4 w-4 animate-spin rounded-full border-2 border-tinta border-t-transparent" />
+          <CheckCircle2 v-else class="h-4 w-4" />Confirmar cobro y emitir factura
+        </button>
       </template>
     </Modal>
   </template>
@@ -274,7 +248,7 @@ const { Minus, Plus, Trash2, ShoppingCart, Lock, Unlock, History, ArrowDownCircl
   <Modal :open="!!emitida" :title="esEmpleado ? 'Venta enviada al dueño' : 'Comprobante emitido'" size="lg" @close="cerrarComprobante">
     <template v-if="emitida">
       <div :class="['mb-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm', esEmpleado ? 'bg-amarillo-50 text-amarillo-800' : 'bg-turquesa-50 text-turquesa-800']">
-        <CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Venta registrada · Pendiente de cobro por el dueño' : 'Venta guardada · Autorización ARCA pendiente' }}
+        <CheckCircle2 class="h-5 w-5" />{{ esEmpleado ? 'Pedido registrado · Pendiente de cobro y facturación por el dueño' : 'Venta cobrada · Comprobante autorizado por ARCA' }}
       </div>
       <Comprobante :venta="emitida" />
     </template>

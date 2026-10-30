@@ -20,7 +20,7 @@ const codigo = computed(() => ({ A: '01', B: '06', C: '11' })[letra.value] || ''
       </div>
       <div class="p-5 text-right text-sm">
         <p class="font-display text-xl font-semibold uppercase">{{ venta.tipo }}</p>
-        <p class="font-mono">N° {{ venta.numero }}</p>
+        <p class="font-mono">Nro. de comprobante {{ venta.numero }}</p>
         <p class="text-tinta-500">{{ fmtDateTime(venta.fecha) }}</p>
       </div>
     </div>
@@ -47,12 +47,13 @@ const codigo = computed(() => ({ A: '01', B: '06', C: '11' })[letra.value] || ''
         <p v-if="venta.cae"><span class="text-tinta-500">CAE:</span> <span class="font-mono font-semibold">{{ venta.cae }}</span></p>
         <p v-if="venta.caeVto"><span class="text-tinta-500">Vto. CAE:</span> {{ fmtDate(venta.caeVto) }}</p>
         <p v-else-if="venta.tipo === 'Factura X'" class="text-xs text-tinta-500">Comprobante interno, sin CAE</p>
-        <p v-else class="text-xs text-tinta-500">CAE pendiente de autorización ARCA</p>
+        <p v-else-if="venta.estado === 'pendiente_cobro'" class="text-xs text-tinta-500">Se solicitará CAE al confirmar el cobro</p>
+        <p v-else class="text-xs text-tinta-500">Comprobante sin CAE</p>
       </div>
       <div class="min-w-[220px] space-y-1 text-sm">
         <template v-if="venta.tipo === 'Factura A'">
           <div class="flex justify-between"><span class="text-tinta-500">Neto gravado</span><span>{{ fmtMoney(venta.subtotal) }}</span></div>
-          <div class="flex justify-between"><span class="text-tinta-500">IVA 21%</span><span>{{ fmtMoney(venta.ivaTotal) }}</span></div>
+          <div class="flex justify-between"><span class="text-tinta-500">IVA discriminado</span><span>{{ fmtMoney(venta.ivaTotal) }}</span></div>
         </template>
         <div class="flex justify-between border-t border-tinta-100 pt-2 font-display text-2xl font-semibold">
           <span>Total</span><span>{{ fmtMoney(venta.total) }}</span>

@@ -132,11 +132,12 @@ class Venta(models.Model):
         (TIPO_FACTURA_X, 'Factura X'),
     ]
 
-    ESTADO_PENDIENTE = 'pendiente'
+    ESTADO_PENDIENTE_COBRO = 'pendiente_cobro'
+    ESTADO_PENDIENTE = ESTADO_PENDIENTE_COBRO
     ESTADO_COMPLETADA = 'completada'
     ESTADO_CANCELADA = 'cancelada'
     ESTADOS = [
-        (ESTADO_PENDIENTE, 'Pendiente'),
+        (ESTADO_PENDIENTE_COBRO, 'Pendiente de cobro'),
         (ESTADO_COMPLETADA, 'Completada'),
         (ESTADO_CANCELADA, 'Cancelada'),
     ]
@@ -146,8 +147,9 @@ class Venta(models.Model):
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
     tipo_comprobante = models.CharField(max_length=20, choices=TIPOS_COMPROBANTE, default=TIPO_FACTURA_B)
     estado = models.CharField(max_length=20, choices=ESTADOS, default=ESTADO_COMPLETADA)
+    nro_comprobante = models.CharField(max_length=20, blank=True, default='')
     cae = models.CharField(max_length=20, blank=True, default='')
-    cae_vto = models.DateField(null=True, blank=True)
+    vencimiento_cae = models.DateField(null=True, blank=True)
     estado_arca = models.CharField(max_length=20, default='Pendiente')
     caja = models.ForeignKey('Caja', on_delete=models.PROTECT, null=True, blank=True, related_name='ventas')
     cliente = models.ForeignKey(

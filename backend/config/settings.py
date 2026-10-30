@@ -11,10 +11,25 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from datetime import timedelta
+import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env')
+
+
+def _environment_bool(name, default='False'):
+    value = os.getenv(name, default).strip().lower()
+    if value in {'1', 'true', 'yes', 'on'}:
+        return True
+    if value in {'0', 'false', 'no', 'off'}:
+        return False
+    raise ImproperlyConfigured(f'{name} debe ser un booleano.')
 
 
 # Quick-start development settings - unsuitable for production
@@ -155,3 +170,10 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
 }
+
+AFIP_CUIT = os.getenv('AFIP_CUIT', '').strip()
+AFIP_CERT_PATH = os.getenv('AFIP_CERT_PATH', '').strip()
+AFIP_KEY_PATH = os.getenv('AFIP_KEY_PATH', '').strip()
+AFIP_PRODUCTION = _environment_bool('AFIP_PRODUCTION')
+AFIP_PUNTO_VENTA = os.getenv('AFIP_PUNTO_VENTA', '').strip()
+AFIP_CONDICION_FISCAL = os.getenv('AFIP_CONDICION_FISCAL', '').strip().lower()

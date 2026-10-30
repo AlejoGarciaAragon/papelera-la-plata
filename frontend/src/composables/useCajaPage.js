@@ -1,5 +1,5 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { Minus, Plus, Trash2, ShoppingCart, Banknote, CreditCard, Wallet, Smartphone, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, } from 'lucide-vue-next';
+import { Minus, Plus, Trash2, ShoppingCart, Banknote, CreditCard, Wallet, Smartphone, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, } from 'lucide-vue-next';
 import { useDataStore } from '../stores/data';
 import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
@@ -28,10 +28,6 @@ export function useCajaPage() {
     const q = ref('');
     const cat = ref('');
     const carrito = ref([]);
-    const clienteId = ref('');
-    const tipo = ref('Factura B');
-    const medio = ref('Efectivo');
-    const pagaCon = ref('');
     const emitida = ref(null);
     const emitiendo = ref(false);
     const mov = ref(null);
@@ -44,10 +40,11 @@ export function useCajaPage() {
     const medioCobro = ref('Efectivo');
     const pagaConCobro = ref('');
     const clienteCobroId = ref('');
+    const tipoCobro = ref('Factura B');
     const caja = computed(() => data.cajaAbierta);
     const ventasCaja = computed(() => data.ventas.filter((v) => v.cajaId === caja.value?.id));
-    const ventasPendientes = computed(() => ventasCaja.value.filter((venta) => venta.estado === 'pendiente'));
-    const ventasCobradas = computed(() => ventasCaja.value.filter((venta) => venta.estado !== 'pendiente'));
+    const ventasPendientes = computed(() => ventasCaja.value.filter((venta) => venta.estado === 'pendiente_cobro'));
+    const ventasCobradas = computed(() => ventasCaja.value.filter((venta) => venta.estado !== 'pendiente_cobro'));
     const totalVentas = computed(() => ventasCobradas.value.reduce((s, v) => s + v.total, 0));
     const efectivoVentas = computed(() => ventasCobradas.value.filter((v) => v.medioPago === 'Efectivo').reduce((s, v) => s + v.total, 0));
     const ingresos = computed(() => caja.value?.movimientos.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + (Number(m.monto) || 0), 0) ?? 0);
@@ -63,11 +60,7 @@ export function useCajaPage() {
     }));
     const cantEnCarrito = (id) => carrito.value.find((i) => i.productoId === id)?.cantidad ?? 0;
     const total = computed(() => carrito.value.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0));
-    const neto = computed(() => carrito.value.reduce((s, i) => s + (i.cantidad * i.precioUnitario) / (1 + i.iva / 100), 0));
-    const cliente = computed(() => data.clientes.find((c) => String(c.id) === String(clienteId.value)) ?? null);
     const unidades = computed(() => carrito.value.reduce((s, i) => s + i.cantidad, 0));
-    const falta = computed(() => medio.value === 'Efectivo' ? Math.max(0, total.value - (Number(pagaCon.value) || 0)) : 0);
-    const vuelto = computed(() => (medio.value === 'Efectivo' && Number(pagaCon.value) > total.value ? Number(pagaCon.value) - total.value : 0));
     const faltaCobro = computed(() => medioCobro.value === 'Efectivo' ? Math.max(0, Number(ventaACobrar.value?.total || 0) - (Number(pagaConCobro.value) || 0)) : 0);
     const vueltoCobro = computed(() => medioCobro.value === 'Efectivo' ? Math.max(0, (Number(pagaConCobro.value) || 0) - Number(ventaACobrar.value?.total || 0)) : 0);
     const movimientos = computed(() => [
@@ -122,26 +115,17 @@ export function useCajaPage() {
             q.value = '';
         }
     }
-    function elegirCliente(id) {
-        clienteId.value = id;
-        const c = data.clientes.find((x) => String(x.id) === String(id));
-        if (c)
-            tipo.value = tipoPorCondicion(c.condicionIVA);
-        else
-            tipo.value = 'Factura B';
-    }
     async function cobrar() {
         if (!carrito.value.length)
             return;
-        if (!esEmpleado.value && medio.value === 'Efectivo' && (pagaCon.value === '' || !Number.isFinite(Number(pagaCon.value)) || Number(pagaCon.value) < total.value))
-            return toast('Ingresá cuánto paga el cliente, igual o mayor al total.', 'error');
         emitiendo.value = true;
         try {
-            emitida.value = await data.registrarVenta({ cliente: cliente.value, tipo: tipo.value, medioPago: medio.value, items: carrito.value });
+            const venta = await data.registrarVenta({ items: carrito.value });
             carrito.value = [];
-            pagaCon.value = '';
-            elegirCliente('');
-            medio.value = 'Efectivo';
+            if (esEmpleado.value)
+                emitida.value = venta;
+            else
+                await abrirCobroPendiente(venta);
         }
         catch (error) {
             toast(apiErrorMessage(error), 'error');
@@ -150,11 +134,25 @@ export function useCajaPage() {
             emitiendo.value = false;
         }
     }
-    function abrirCobroPendiente(venta) {
+    async function actualizarTipoComprobante() {
+        const clienteId = clienteCobroId.value;
+        const cliente = data.clientes.find((item) => String(item.id) === String(clienteId));
+        tipoCobro.value = tipoPorCondicion(cliente?.condicionIVA);
+        try {
+            const tipoSugerido = await data.tipoComprobanteSugerido(clienteId);
+            if (clienteId === clienteCobroId.value)
+                tipoCobro.value = tipoSugerido;
+        }
+        catch (error) {
+            toast(apiErrorMessage(error), 'error');
+        }
+    }
+    async function abrirCobroPendiente(venta) {
         ventaACobrar.value = venta;
         medioCobro.value = 'Efectivo';
         pagaConCobro.value = '';
         clienteCobroId.value = venta.clienteId ?? '';
+        await actualizarTipoComprobante();
     }
     async function cobrarPendiente() {
         const venta = ventaACobrar.value;
@@ -162,13 +160,31 @@ export function useCajaPage() {
             return;
         if (medioCobro.value === 'Efectivo' && (pagaConCobro.value === '' || Number(pagaConCobro.value) < venta.total))
             return toast('Ingresá un importe igual o mayor al total de la venta.', 'error');
+        const cliente = data.clientes.find((item) => String(item.id) === String(clienteCobroId.value));
+        const cuit = cliente?.documento?.replace(/\D/g, '');
+        if (tipoCobro.value === 'Factura A' && (
+            cliente?.tipoDocumento !== 'cuit'
+            || cliente.condicionIVA !== 'Responsable Inscripto'
+            || !/^\d{11}$/.test(cuit || '')
+        ))
+            return toast('Para emitir Factura A, seleccioná un Responsable Inscripto con CUIT de 11 dígitos.', 'error');
+        emitiendo.value = true;
         try {
-            await data.cobrarVenta(venta.id, medioCobro.value, medioCobro.value === 'Efectivo' ? Number(pagaConCobro.value) : undefined, clienteCobroId.value);
-            toast('Venta cobrada correctamente');
+            emitida.value = await data.cobrarVenta(
+                venta.id,
+                medioCobro.value,
+                medioCobro.value === 'Efectivo' ? Number(pagaConCobro.value) : undefined,
+                clienteCobroId.value,
+                tipoCobro.value,
+            );
+            toast('Venta cobrada y comprobante autorizado por ARCA');
             ventaACobrar.value = null;
         }
         catch (error) {
             toast(apiErrorMessage(error), 'error');
+        }
+        finally {
+            emitiendo.value = false;
         }
     }
     async function registrarMov() {
@@ -205,13 +221,13 @@ export function useCajaPage() {
     const print = () => window.print();
     return {
         Minus, Plus, Trash2, ShoppingCart, Banknote, CreditCard, Wallet, Smartphone, Lock, Unlock, History,
-        ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, User, MEDIOS,
+        ArrowDownCircle, ArrowUpCircle, Receipt, Printer, CheckCircle2, ScanBarcode, MEDIOS,
         PageHeader, Modal, EmptyState, Field, Comprobante, data, seccion, fmtDateTime, fmtMoney, fmtTime, tipoBadge,
-        montoInicial, q, cat, carrito, clienteId, tipo, medio, pagaCon, emitida, emitiendo, mov, movForm, cierre,
+        montoInicial, q, cat, carrito, emitida, emitiendo, mov, movForm, cierre,
         verMovs, contado, buscador, caja, ventasCaja, totalVentas, efectivoVentas, ingresos, egresos, efectivoEsperado,
-        porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, neto, cliente, unidades, falta,
-        vuelto, vueltoCobro, faltaCobro, movimientos, esEmpleado, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId,
-        abrir, agregar, cambiarCant, quitar, escanear, elegirCliente, cobrar, abrirCobroPendiente, cobrarPendiente, registrarMov,
+        porMedio, diferencia, ultimaCerrada, visibles, catDe, cantEnCarrito, total, unidades,
+        vueltoCobro, faltaCobro, movimientos, esEmpleado, ventasPendientes, ventaACobrar, medioCobro, pagaConCobro, clienteCobroId, tipoCobro,
+        abrir, agregar, cambiarCant, quitar, escanear, cobrar, abrirCobroPendiente, actualizarTipoComprobante, cobrarPendiente, registrarMov,
         abrirCierre, confirmarCierre, cerrarComprobante, print,
     };
 }

@@ -21,6 +21,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from .permissions import RolAccessPermission
+from core.services.afip_service import ARCAServiceError, generar_factura, tipo_comprobante_sugerido
 
 
 class CurrentUserView(APIView):
@@ -240,12 +241,6 @@ class VentaViewSet(viewsets.ModelViewSet):
         serializer = VentaCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         values = serializer.validated_data
-        es_dueno = request.user.groups.filter(name='Dueno').exists()
-        if es_dueno and 'metodo_pago' not in values:
-            raise ValidationError({'medioPago': 'Seleccioná el medio de pago.'})
-        if es_dueno and values.get('metodo_pago') == Venta.METODO_PAGO_PENDIENTE:
-            raise ValidationError({'medioPago': 'Seleccioná un medio de pago válido.'})
-        metodo_pago = values.get('metodo_pago') if es_dueno else Venta.METODO_PAGO_PENDIENTE
         items = values['items']
 
         productos_ids = [item['producto'].id for item in items]
@@ -281,11 +276,10 @@ class VentaViewSet(viewsets.ModelViewSet):
                 total += producto.precio_venta * cantidad
             venta = Venta.objects.create(
                 total=total,
-                metodo_pago=metodo_pago,
-                tipo_comprobante=values['tipo'],
-                cliente=values.get('cliente') if es_dueno else None,
-                estado=Venta.ESTADO_COMPLETADA if es_dueno else Venta.ESTADO_PENDIENTE,
-                estado_arca='No aplica' if values['tipo'] == Venta.TIPO_FACTURA_X else 'Pendiente',
+                metodo_pago=Venta.METODO_PAGO_PENDIENTE,
+                tipo_comprobante=Venta.TIPO_FACTURA_X,
+                estado=Venta.ESTADO_PENDIENTE_COBRO,
+                estado_arca='Pendiente',
                 vendedor=request.user,
                 caja=caja,
             )
@@ -307,11 +301,23 @@ class VentaViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cobrar(self, request, pk=None):
+        return self._cobrar_y_facturar(request, pk)
+
+    @action(detail=True, methods=['post'])
+    def cobrar_y_facturar(self, request, pk=None):
+        return self._cobrar_y_facturar(request, pk)
+
+    def _cobrar_y_facturar(self, request, pk):
+        if not request.user.groups.filter(name='Dueno').exists():
+            return Response(
+                {'error': 'Solo el rol Dueño puede cobrar y facturar ventas.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = VentaPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             venta = Venta.objects.select_for_update().get(pk=pk)
-            if venta.estado != Venta.ESTADO_PENDIENTE:
+            if venta.estado != Venta.ESTADO_PENDIENTE_COBRO:
                 raise ValidationError({'venta': 'La venta ya no está pendiente de cobro.'})
             if not venta.caja_id:
                 raise ValidationError({'caja': 'Se necesita una caja abierta para cobrar esta venta.'})
@@ -322,14 +328,43 @@ class VentaViewSet(viewsets.ModelViewSet):
             paga_con = serializer.validated_data.get('pagaCon')
             if metodo_pago == Venta.METODO_PAGO_EFECTIVO and (paga_con is None or paga_con < venta.total):
                 raise ValidationError({'pagaCon': 'Ingresá un importe igual o mayor al total de la venta.'})
+            venta.cliente = serializer.validated_data.get('cliente')
+            venta.tipo_comprobante = serializer.validated_data['tipo']
+            try:
+                factura = generar_factura(venta)
+            except ARCAServiceError as error:
+                raise ValidationError({'arca': str(error)}) from error
+
             venta.metodo_pago = metodo_pago
             venta.estado = Venta.ESTADO_COMPLETADA
-            update_fields = ['metodo_pago', 'estado']
-            if 'cliente' in serializer.validated_data:
-                venta.cliente = serializer.validated_data['cliente']
-                update_fields.append('cliente')
-            venta.save(update_fields=update_fields)
+            venta.estado_arca = 'Autorizado'
+            venta.cae = factura['cae']
+            venta.vencimiento_cae = factura['vencimiento_cae']
+            venta.nro_comprobante = factura['nro_comprobante']
+            venta.save(update_fields=[
+                'cliente', 'tipo_comprobante', 'metodo_pago', 'estado', 'estado_arca',
+                'cae', 'vencimiento_cae', 'nro_comprobante',
+            ])
         return Response(self.get_serializer(venta).data)
+
+    @action(detail=False, methods=['get'], url_path='tipo-comprobante-sugerido')
+    def tipo_comprobante_sugerido(self, request):
+        cliente_id = request.query_params.get('clienteId')
+        cliente = None
+        if cliente_id:
+            try:
+                cliente_id = int(cliente_id)
+            except ValueError as error:
+                raise ValidationError({'clienteId': 'El identificador del cliente no es válido.'}) from error
+            try:
+                cliente = Cliente.objects.get(pk=cliente_id, activo=True)
+            except Cliente.DoesNotExist as error:
+                raise ValidationError({'clienteId': 'El cliente seleccionado no existe o está oculto.'}) from error
+        try:
+            tipo = tipo_comprobante_sugerido(cliente)
+        except ARCAServiceError as error:
+            raise ValidationError({'arca': str(error)}) from error
+        return Response({'tipo': tipo})
 
     @action(detail=False, methods=['get'])
     def resumen_diario(self, request):

@@ -3,6 +3,13 @@ import { useDataStore } from '../stores/data';
 import { useToastStore } from '../stores/toast';
 import { apiErrorMessage } from '../lib/apiError';
 export const CONDICIONES = ['Responsable Inscripto', 'Monotributista', 'Consumidor Final', 'Exento'];
+export const TIPOS_DOCUMENTO = [
+    { id: 'dni', label: 'DNI' },
+    { id: 'cuit', label: 'CUIT' },
+    { id: 'cuil', label: 'CUIL' },
+    { id: 'pasaporte', label: 'Pasaporte' },
+    { id: 'otro', label: 'Otro' },
+];
 export function useClientesPage() {
     const data = useDataStore();
     const { push: toast } = useToastStore();
@@ -28,7 +35,7 @@ export function useClientesPage() {
         const t = q.value.toLowerCase();
         return (!t || c.razonSocial.toLowerCase().includes(t) || c.documento.includes(t)) && (!cond.value || c.condicionIVA === cond.value);
     }));
-    const nuevo = () => (form.value = { id: '', razonSocial: '', documento: '', condicionIVA: 'Consumidor Final', email: '', telefono: '', direccion: '' });
+    const nuevo = () => (form.value = { id: '', razonSocial: '', tipoDocumento: 'dni', documento: '', condicionIVA: 'Consumidor Final', email: '', telefono: '', direccion: '' });
     async function alternar(c) {
         try {
             const oculto = await data.alternarOculto('cliente', c.id);

@@ -19,7 +19,7 @@ export function useFacturacionPage() {
     const fechaCaja = ref('');
     const detalleCaja = ref(null);
     const esHoy = computed(() => dia.value === dayKey(new Date()));
-    const delDia = computed(() => data.ventas.filter((v) => v.estado !== 'pendiente' && dayKey(v.fecha) === dia.value).sort((a, b) => b.fecha.localeCompare(a.fecha)));
+    const delDia = computed(() => data.ventas.filter((v) => v.estado !== 'pendiente_cobro' && dayKey(v.fecha) === dia.value).sort((a, b) => b.fecha.localeCompare(a.fecha)));
     const filtradas = computed(() => {
         const t = q.value.toLowerCase();
         return delDia.value.filter((v) => !t || v.numero.includes(t) || v.clienteNombre.toLowerCase().includes(t) || v.vendedorNombre.toLowerCase().includes(t) || v.cae.includes(t));
@@ -38,7 +38,7 @@ export function useFacturacionPage() {
             .filter((caja) => caja.cerradaEn && fechas.includes(fechaDeCaja(caja)))
             .sort((a, b) => `${fechaDeCaja(b)}${b.abiertaEn}`.localeCompare(`${fechaDeCaja(a)}${a.abiertaEn}`));
     });
-    const ventasDeCaja = (caja) => data.ventas.filter((venta) => venta.estado !== 'pendiente' && String(venta.cajaId) === String(caja.id));
+    const ventasDeCaja = (caja) => data.ventas.filter((venta) => venta.estado !== 'pendiente_cobro' && String(venta.cajaId) === String(caja.id));
     const resumenCaja = (caja) => {
         const ventas = ventasDeCaja(caja);
         const ventasPorMedio = Object.fromEntries(mediosCaja.map((medio) => [medio, 0]));

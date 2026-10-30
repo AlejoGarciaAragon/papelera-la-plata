@@ -2,7 +2,7 @@
 import { seccion } from '../lib/sections';
 import { fmtMoney } from '../lib/format';
 import { avatarColor, condColor } from '../lib/ui';
-import { CONDICIONES, useClientesPage } from '../composables/useClientesPage';
+import { CONDICIONES, TIPOS_DOCUMENTO, useClientesPage } from '../composables/useClientesPage';
 import PageHeader from '../components/PageHeader.vue';
 import SearchInput from '../components/SearchInput.vue';
 import Modal from '../components/Modal.vue';
@@ -72,7 +72,12 @@ const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats
   <Modal :open="!!form" :title="form?.id ? 'Editar cliente' : 'Nuevo cliente'" accent="bg-violeta-500" size="lg" @close="form = null">
     <div v-if="form" class="grid gap-4 sm:grid-cols-2">
       <Field label="Razón social / Nombre" class="sm:col-span-2"><input v-model="form.razonSocial" class="input" autofocus /></Field>
-      <Field label="CUIT / DNI"><input v-model="form.documento" class="input font-mono" placeholder="20-12345678-9" /></Field>
+      <Field label="Tipo de documento">
+        <select v-model="form.tipoDocumento" class="input">
+          <option v-for="tipo in TIPOS_DOCUMENTO" :key="tipo.id" :value="tipo.id">{{ tipo.label }}</option>
+        </select>
+      </Field>
+      <Field label="Número de documento"><input v-model="form.documento" class="input font-mono" placeholder="20-12345678-9" /></Field>
       <Field label="Condición frente al IVA">
         <select v-model="form.condicionIVA" class="input"><option v-for="c in CONDICIONES" :key="c">{{ c }}</option></select>
       </Field>
@@ -80,7 +85,7 @@ const { data, q, verOcultos, ocultos, base, cond, form, borrar, iniciales, stats
       <Field label="Teléfono"><input v-model="form.telefono" class="input" /></Field>
       <Field label="Dirección" class="sm:col-span-2"><input v-model="form.direccion" class="input" /></Field>
       <p class="rounded-xl bg-violeta-50 px-4 py-3 text-xs text-violeta-700 sm:col-span-2">
-        Se emitirá <b>{{ form.condicionIVA === 'Responsable Inscripto' ? 'Factura A' : 'Factura B' }}</b> a este cliente según su condición frente al IVA.
+        El tipo de comprobante se definirá al cobrar según el régimen fiscal del comercio y la condición IVA del cliente.
       </p>
     </div>
     <template #footer>
